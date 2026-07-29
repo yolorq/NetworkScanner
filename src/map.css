@@ -243,3 +243,22 @@
   margin: 5px 4px;
   background: #2d394b;
 }
+.topology-group-bar { min-height: 38px; display: flex; align-items: center; gap: 7px; margin: -10px 0 14px; color: #7e8b9d; font-size: 10px; }
+.topology-group-chip { display: flex; align-items: center; border: 1px solid #303b4c; border-radius: 5px; overflow: hidden; background: #151c27; }
+.topology-group-chip > button { min-height: 27px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; color: #aeb9c8; background: transparent; border: 0; font-size: 10px; }
+.topology-group-chip > button + button { padding: 0 6px; border-left: 1px solid #303b4c; color: #778499; }
+.topology-group-chip.active { border-color: #8579eb; background: #27234b; }
+.topology-group-chip.active > button { color: #eeeaff; }
+.topology-group-chip small { color: #7e8b9d; font-size: 9px; }
+.topology-group-create, .topology-group-clear { height: 27px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; color: #a79cff; background: transparent; border: 1px dashed #4b427e; border-radius: 5px; font-size: 10px; }
+.topology-group-clear { color: #8d9aab; border-style: solid; border-color: #303b4c; }
+.topology-group-dialog { width: min(500px, 100%); }
+.topology-group-devices-heading { display: flex; justify-content: space-between; margin: 18px 0 8px; color: #9da8b8; font-size: 11px; }
+.topology-group-devices-heading small { color: #7a8799; font-size: 10px; }
+.topology-group-devices { max-height: 245px; overflow: auto; padding: 4px; background: #0d1219; border: 1px solid #2d3747; border-radius: 6px; }
+.topology-group-device { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 4px; cursor: pointer; }
+.topology-group-device:hover { background: #1b2431; }
+.topology-group-device input { position: absolute; opacity: 0; }
+.topology-group-device > span:nth-child(2) { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 5px; }
+.topology-group-device-icon.cyan { color: #5ad5e8; background: #183a43; } .topology-group-device-icon.emerald { color: #62dcb0; background: #1b3d35; } .topology-group-device-icon.teal { color: #5dd9cd; background: #193a3d; } .topology-group-device-icon.blue { color: #71adff; background: #1c3557; } .topology-group-device-icon.amber { color: #f3c375; background: #3b3020; } .topology-group-device-icon.indigo { color: #aaaaf7; background: #2d2c55; } .topology-group-device-icon.slate { color: #a6b1c2; background: #29313d; }
+.topology-group-device > span:nth-child(3) { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; } .topology-group-device strong { color: #dce3ec; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .topology-group-device small { color: #778497; font-size: 9px; } .topology-group-device > i { width: 18px; height: 18px; display: grid; place-items: center; color: #a79cff; border: 1px solid #3b4658; border-radius: 4px; }
