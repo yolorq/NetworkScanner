@@ -611,13 +611,14 @@ function MapView({
       data: { group, devices },
       draggable: false,
       selectable: false,
-      zIndex: -1,
+      // Keep the group above the React Flow background, but below device cards.
+      zIndex: 0,
       style: { width: Math.max(280, maxX - minX + padding * 2), height: Math.max(170, maxY - minY + padding * 2 + headerHeight) },
     };
   });
   const visibleNodes = activeGroup
     ? nodes.filter((node) => activeGroup.deviceIds.includes(node.id))
-    : [...groupNodes, ...nodes];
+    : [...groupNodes, ...nodes.map((node) => ({ ...node, zIndex: 1 }))];
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
   const visibleFlowEdges = activeGroup
     ? flowEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))

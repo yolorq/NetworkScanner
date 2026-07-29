@@ -186,16 +186,19 @@
   border: 2px solid #111923;
   z-index: 3;
 }
-.node-target {
-  left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
+.react-flow__handle.node-target {
+  left: -8px !important;
+  right: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
 }
-.node-source {
-  right: -7px;
-  bottom: auto;
-  top: 50%;
-  transform: translateY(-50%);
+.react-flow__handle.node-source {
+  right: -8px !important;
+  left: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
 }
 .node-handle:hover {
   background: #a99cff;
