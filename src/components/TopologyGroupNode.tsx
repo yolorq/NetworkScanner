@@ -12,18 +12,18 @@ export function TopologyGroupNode({ data }: NodeProps) {
     devices?: Array<{ id: string; hostname: string; ip: string }>;
   };
   if (!group || typeof group.name !== 'string') return null;
+  const color = group.color ?? 'violet';
   return (
-    <div className="topology-group-node">
+    <div className={`topology-group-node topology-group-color-${color}`}>
       <div className="topology-group-node-heading">
+        <span className="topology-group-node-dot" aria-hidden="true" />
+        <div className="topology-group-node-copy">
+          <strong>{group.name}</strong>
+          <small>{Array.isArray(group.deviceIds) ? group.deviceIds.length : 0} устройств</small>
+        </div>
         <span className="topology-group-node-icon">
           <Boxes size={14} />
         </span>
-        <strong>{group.name}</strong>
-        <small>{Array.isArray(group.deviceIds) ? group.deviceIds.length : 0}</small>
-      </div>
-      <div className="topology-group-node-caption">ГРУППА УСТРОЙСТВ</div>
-      <div className="topology-group-node-hint">
-        {group.collapsed ? 'Группа свернута' : 'Устройства в этой области'}
       </div>
     </div>
   );

@@ -119,5 +119,8 @@ export interface TopologyGroup {
   name: string;
   deviceIds: string[];
   collapsed: boolean;
+  color?: TopologyGroupColor;
   position?: { x: number; y: number };
 }
+
+export type TopologyGroupColor = 'violet' | 'cyan' | 'emerald' | 'amber' | 'rose' | 'blue';

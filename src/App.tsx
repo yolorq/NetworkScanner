@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import {
   Background,
+  ConnectionMode,
   Controls,
   ReactFlow,
   useEdgesState,
@@ -629,10 +630,19 @@ function MapView({
           {
             id: value.id,
             name: value.name,
-            deviceIds: Array.isArray(value.deviceIds)
-              ? value.deviceIds.filter((id): id is string => typeof id === 'string')
-              : [],
-            collapsed: value.collapsed === true,
+          deviceIds: Array.isArray(value.deviceIds)
+            ? value.deviceIds.filter((id): id is string => typeof id === 'string')
+            : [],
+          collapsed: value.collapsed === true,
+          color:
+            value.color === 'cyan' ||
+            value.color === 'emerald' ||
+            value.color === 'amber' ||
+            value.color === 'rose' ||
+            value.color === 'blue' ||
+            value.color === 'violet'
+              ? value.color
+              : 'violet',
             ...(position && Number.isFinite(position.x) && Number.isFinite(position.y)
               ? { position }
               : {}),
@@ -643,6 +653,18 @@ function MapView({
       return [];
     }
   });
+  const [groupDragPositions, setGroupDragPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const groupDragRef = useRef<
+    Record<
+      string,
+      {
+        origin: { x: number; y: number };
+        members: Record<string, { x: number; y: number }>;
+      }
+    >
+  >({});
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const saveGroups = (next: TopologyGroup[]) => {
     setGroups(next);
@@ -661,7 +683,7 @@ function MapView({
         onSave={(value) => {
           const next = group
             ? groups.map((item) => (item.id === group.id ? { ...item, ...value } : item))
-            : [...groups, { ...value, id: crypto.randomUUID(), collapsed: false }];
+            : [...groups, { ...value, id: crypto.randomUUID(), collapsed: false, color: value.color ?? 'violet' }];
           saveGroups(next);
           setDialog(null);
         }}
@@ -704,15 +726,15 @@ function MapView({
         // A group is a visual frame, not a second draggable graph. Its bounds
         // must follow the member devices; otherwise the frame and devices
         // separate after the first move.
-        const position = members.length
+        const position = groupDragPositions[group.id] ?? (members.length
           ? { x: minX - padding, y: minY - padding - headerHeight }
-          : fallback;
+          : fallback);
         return {
           id: `group-${group.id}`,
           type: 'topologyGroup',
           position,
           data: { group: { ...group, deviceIds: memberIds }, devices },
-          draggable: false,
+          draggable: true,
           selectable: false,
           // Keep the group above the React Flow background, but below device cards.
           zIndex: 0,
@@ -722,7 +744,7 @@ function MapView({
           },
         };
       }),
-    [devices, groups]
+    [devices, groupDragPositions, groups]
   );
   const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const selectedDevice =
@@ -1121,6 +1143,7 @@ function MapView({
             nodes={visibleNodes}
             edges={visibleFlowEdges}
             nodeTypes={nodeTypes}
+            connectionMode={ConnectionMode.Loose}
             // Keep React Flow uncontrolled. Passing a freshly updated viewport
             // back from onMove/onViewportChange creates a render feedback loop
             // and eventually React error #185 (maximum update depth exceeded).
@@ -1168,8 +1191,89 @@ function MapView({
             // also mutate selection while `nodes` is controlled creates a
             // selection -> render -> selection feedback loop during drag.
             elementsSelectable={false}
+            onNodeDrag={(_, node) => {
+              if (node.type !== 'topologyGroup') return;
+              const groupId = node.id.replace('group-', '');
+              const group = groups.find((item) => item.id === groupId);
+              const groupNode = groupNodes.find((item) => item.id === node.id);
+              if (!group || !groupNode) return;
+
+              const currentDrag = groupDragRef.current[groupId] ?? {
+                origin: { ...groupNode.position },
+                members: Object.fromEntries(
+                  (group.deviceIds ?? []).flatMap((id) => {
+                    const deviceNode = nodes.find((item) => item.id === id);
+                    return deviceNode ? [[id, { ...deviceNode.position }]] : [];
+                  })
+                ),
+              };
+              groupDragRef.current[groupId] = currentDrag;
+
+              const delta = {
+                x: node.position.x - currentDrag.origin.x,
+                y: node.position.y - currentDrag.origin.y,
+              };
+              if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) return;
+
+              setGroupDragPositions((current) => ({
+                ...current,
+                [groupId]: {
+                  x: currentDrag.origin.x + delta.x,
+                  y: currentDrag.origin.y + delta.y,
+                },
+              }));
+              setNodes((current) =>
+                current.map((item) => {
+                  const origin = currentDrag.members[item.id];
+                  return origin
+                    ? { ...item, position: { x: origin.x + delta.x, y: origin.y + delta.y } }
+                    : item;
+                })
+              );
+            }}
             onNodeDragStop={(_, node) => {
-              if (node.type !== 'device') return;
+              if (node.type === 'topologyGroup') {
+                const groupId = node.id.replace('group-', '');
+                const group = groups.find((item) => item.id === groupId);
+                const drag = groupDragRef.current[groupId];
+                if (!group || !drag) return;
+
+                const delta = {
+                  x: node.position.x - drag.origin.x,
+                  y: node.position.y - drag.origin.y,
+                };
+                if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) return;
+
+                const save = Promise.all(
+                  (group.deviceIds ?? []).map((id) => {
+                    const origin = drag.members[id];
+                    return origin
+                      ? onPosition(id, {
+                          position: { x: origin.x + delta.x, y: origin.y + delta.y },
+                        })
+                      : Promise.resolve();
+                  })
+                );
+                if (!(group.deviceIds ?? []).length) {
+                  saveGroups(
+                    groups.map((item) =>
+                      item.id === groupId
+                        ? { ...item, position: { x: node.position.x, y: node.position.y } }
+                        : item
+                    )
+                  );
+                }
+                void save.finally(() => {
+                  delete groupDragRef.current[groupId];
+                  setGroupDragPositions((current) => {
+                    const next = { ...current };
+                    delete next[groupId];
+                    return next;
+                  });
+                });
+                return;
+              }
+
               const { x, y } = node.position;
               if (Number.isFinite(x) && Number.isFinite(y)) {
                 void onPosition(node.id, { position: { x, y } });

@@ -207,28 +207,41 @@
   border: 2px solid #111923;
   z-index: 3;
 }
-.react-flow__handle.node-target {
+.react-flow__handle.node-point-top {
   left: 50% !important;
   right: auto !important;
   top: -8px !important;
   bottom: auto !important;
   transform: translateX(-50%) !important;
 }
+.react-flow__handle.node-point-left {
+  left: -8px !important;
+  right: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}
 .device-node.is-connected { border-color: #8b7ff0; box-shadow: 0 0 0 2px #9d92ff22, 0 12px 28px #05091099; }
 .device-node.status-node-offline { border-color: #8a4b5a; }
 .device-node.status-node-warning { border-color: #8d713e; }
 .device-node.status-node-online { border-color: #356d66; }
-.node-group-label { position: absolute; left: 12px; bottom: -17px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a79cff; font-size: 8px; opacity: .9; }
 .device-node-tooltip { position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 20; width: 235px; display: grid; gap: 4px; padding: 10px 11px; color: #b9c4d3; background: #171f2c; border: 1px solid #46536a; border-radius: 7px; box-shadow: 0 14px 30px #000b; font-size: 9px; line-height: 1.3; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .15s ease, transform .15s ease; }
 .device-node-tooltip strong { color: #f0f3f8; font-size: 10px; }
 .device-node-tooltip b { color: #8594aa; font-weight: 600; }
 .device-node:hover .device-node-tooltip, .device-node:focus-within .device-node-tooltip { opacity: 1; transform: translate(-50%, 0); }
-.react-flow__handle.node-source {
+.react-flow__handle.node-point-bottom {
   left: 50% !important;
   right: auto !important;
   top: auto !important;
   bottom: -8px !important;
   transform: translateX(-50%) !important;
+}
+.react-flow__handle.node-point-right {
+  left: auto !important;
+  right: -8px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
 }
 .node-handle:hover {
   background: #a99cff;
@@ -324,43 +337,91 @@
   width: 100%;
   height: 100%;
   padding: 12px 16px;
-  border: 1px solid #6257b1;
+  border: 1px solid color-mix(in srgb, var(--group-color) 72%, #252b3a);
   border-radius: 14px;
   background: linear-gradient(145deg, #28244c88, #191b3280);
   box-shadow:
-    inset 0 0 0 1px #a69bff14,
+    inset 0 0 0 1px color-mix(in srgb, var(--group-color) 16%, transparent),
     0 10px 24px #05091040;
-  pointer-events: none;
-  cursor: default;
+  pointer-events: auto;
+  cursor: grab;
   box-sizing: border-box;
 }
-.react-flow__node-topologyGroup { pointer-events: none; }
+.topology-group-node:active { cursor: grabbing; }
+.react-flow__node-topologyGroup { pointer-events: auto; }
+.react-flow__node-topologyGroup { z-index: 0 !important; }
+.react-flow__node-device { z-index: 3 !important; }
 .topology-group-node-heading {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #eeeaff;
 }
-.topology-group-node-heading strong {
+.topology-group-node-copy {
   min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.topology-group-node-heading strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
 }
 .topology-group-node-heading small {
-  margin-left: auto;
-  color: #b3aaff;
-  font-size: 10px;
+  color: #a9a5c5;
+  font-size: 9px;
+}
+.topology-group-node-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  align-self: center;
+  border-radius: 50%;
+  background: var(--group-color);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--group-color) 16%, transparent);
 }
 .topology-group-node-icon {
   display: grid;
   place-items: center;
   width: 25px;
   height: 25px;
-  color: #b1a5ff;
-  background: #403a70;
+  flex: none;
+  color: var(--group-color);
+  background: color-mix(in srgb, var(--group-color) 22%, #202438);
   border-radius: 7px;
+}
+.topology-group-color-violet { --group-color: #a79cff; }
+.topology-group-color-cyan { --group-color: #5ad5e8; }
+.topology-group-color-emerald { --group-color: #62dcb0; }
+.topology-group-color-amber { --group-color: #f3c375; }
+.topology-group-color-rose { --group-color: #ed849a; }
+.topology-group-color-blue { --group-color: #71adff; }
+.topology-group-colors {
+  display: flex;
+  gap: 8px;
+}
+.topology-group-color-option {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #354052;
+  border-radius: 6px;
+  background: #151c27;
+}
+.topology-group-color-option span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--group-color);
+}
+.topology-group-color-option.selected {
+  border-color: var(--group-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-color) 28%, transparent);
 }
 .topology-group-node-caption {
   margin-top: 7px;
@@ -581,4 +642,53 @@
   color: #a79cff;
   border: 1px solid #3b4658;
   border-radius: 4px;
+}
+
+@media (max-width: 760px) {
+  .map-toolbar {
+    height: auto;
+    min-height: 54px;
+    padding: 10px 12px;
+    gap: 10px 12px;
+    flex-wrap: wrap;
+  }
+  .map-toolbar-title {
+    width: 100%;
+  }
+  .map-toolbar > span:not(.toolbar-spacer) {
+    font-size: 10px;
+  }
+  .toolbar-spacer {
+    display: none;
+  }
+  .map-auto-edges-toggle {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+  }
+  .map-filter-select,
+  .line-filter {
+    width: calc(50% - 6px);
+  }
+  .map-canvas {
+    height: min(625px, calc(100dvh - 360px));
+    min-height: 360px;
+  }
+  .map-context-menu {
+    width: min(236px, calc(100vw - 24px));
+  }
+  .topology-group-node {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-filter-select,
+  .line-filter,
+  .tool-button {
+    width: 100%;
+  }
+  .map-canvas {
+    min-height: 330px;
+  }
 }

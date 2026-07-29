@@ -1,7 +1,16 @@
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { DeviceIcon, typeColors, typeLabels } from './DeviceIcon';
-import type { Device, TopologyGroup } from '../types';
+import type { Device, TopologyGroup, TopologyGroupColor } from '../types';
+
+const groupColors: Array<{ value: TopologyGroupColor; label: string }> = [
+  { value: 'violet', label: 'Фиолетовый' },
+  { value: 'cyan', label: 'Бирюзовый' },
+  { value: 'emerald', label: 'Зелёный' },
+  { value: 'amber', label: 'Жёлтый' },
+  { value: 'rose', label: 'Розовый' },
+  { value: 'blue', label: 'Синий' },
+];
 
 export function TopologyGroupDialog({
   devices,
@@ -16,6 +25,7 @@ export function TopologyGroupDialog({
 }) {
   const [name, setName] = useState(group?.name ?? '');
   const [deviceIds, setDeviceIds] = useState<string[]>(group?.deviceIds ?? []);
+  const [color, setColor] = useState<TopologyGroupColor>(group?.color ?? 'violet');
   const toggleDevice = (id: string) =>
     setDeviceIds((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -27,7 +37,7 @@ export function TopologyGroupDialog({
         className="dialog-card topology-group-dialog"
         onSubmit={(event) => {
           event.preventDefault();
-          if (name.trim()) onSave({ name: name.trim(), deviceIds });
+          if (name.trim()) onSave({ name: name.trim(), deviceIds, color });
         }}
       >
         <div className="dialog-heading">
@@ -43,6 +53,23 @@ export function TopologyGroupDialog({
           Название группы
           <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Например: Серверы" />
         </label>
+        <div className="setting-field topology-group-color-field">
+          <span>Цвет группы</span>
+          <div className="topology-group-colors" role="radiogroup" aria-label="Цвет группы">
+            {groupColors.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`topology-group-color-option topology-group-color-${item.value} ${color === item.value ? 'selected' : ''}`}
+                aria-label={item.label}
+                aria-pressed={color === item.value}
+                onClick={() => setColor(item.value)}
+              >
+                <span />
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="topology-group-devices-heading">
           <span>Устройства в группе</span>
           <small>{deviceIds.length} выбрано</small>

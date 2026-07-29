@@ -18,7 +18,18 @@ export function DeviceNode({ data, selected }: NodeProps) {
       className={`device-node device-node-${color} status-node-${device.status} ${selected ? 'is-selected' : ''} ${isConnected ? 'is-connected' : ''}`}
       title={`${device.hostname || device.ip} · ${device.ip}`}
     >
-      <Handle type="target" position={Position.Top} className="node-handle node-target" />
+      <Handle
+        id="top"
+        type="source"
+        position={Position.Top}
+        className="node-handle node-point node-point-top"
+      />
+      <Handle
+        id="left"
+        type="source"
+        position={Position.Left}
+        className="node-handle node-point node-point-left"
+      />
       <div className="node-copy">
         <strong>{device.hostname || device.ip}</strong>
         <span>{device.ip}</span>
@@ -28,11 +39,6 @@ export function DeviceNode({ data, selected }: NodeProps) {
         <DeviceIcon type={device.type} size={22} />
       </div>
       <span className={`status-dot status-${device.status}`} />
-      {groupName && (
-        <span className="node-group-label" title={`Группа: ${groupName}`}>
-          {groupName}
-        </span>
-      )}
       <div className="device-node-tooltip" role="tooltip">
         <strong>{device.hostname || device.ip}</strong>
         <span>
@@ -57,7 +63,18 @@ export function DeviceNode({ data, selected }: NodeProps) {
           <b>Uptime:</b> {(device as Device & { uptime?: string | number | null }).uptime || '—'}
         </span>
       </div>
-      <Handle type="source" position={Position.Bottom} className="node-handle node-source" />
+      <Handle
+        id="right"
+        type="source"
+        position={Position.Right}
+        className="node-handle node-point node-point-right"
+      />
+      <Handle
+        id="bottom"
+        type="source"
+        position={Position.Bottom}
+        className="node-handle node-point node-point-bottom"
+      />
     </div>
   );
 }
