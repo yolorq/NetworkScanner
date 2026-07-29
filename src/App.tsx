@@ -122,9 +122,9 @@ export default function App() {
         .filter((device) =>
           `${device.hostname} ${device.ip} ${device.mac ?? ''} ${device.vendor ?? ''} ${typeLabels[device.type]}`
             .toLowerCase()
-            .includes(search.toLowerCase()),
+            .includes(search.toLowerCase())
         ),
-    [devices, filter, search],
+    [devices, filter, search]
   );
 
   useEffect(() => {
@@ -338,7 +338,7 @@ function Overview({
     devices.reduce<Record<string, number>>((acc, device) => {
       acc[device.type] = (acc[device.type] ?? 0) + 1;
       return acc;
-    }, {}),
+    }, {})
   );
   return (
     <>
@@ -464,55 +464,637 @@ function Overview({
 }
 
 function MapView({
-  devices, edges, mapView, onSelect, onPosition, onDeleteDevice, onAddDevice, onSaveEdge, onDeleteEdge, onSaveMapView,
+  devices,
+  edges,
+  mapView,
+  onSelect,
+  onPosition,
+  onDeleteDevice,
+  onAddDevice,
+  onSaveEdge,
+  onDeleteEdge,
+  onSaveMapView,
 }: {
-  devices: Device[]; edges: NetworkEdge[]; mapView: MapViewState; onSelect: (id: string) => void;
-  onPosition: (id: string, changes: Partial<Device>) => Promise<void>; onDeleteDevice: (id: string) => Promise<boolean>;
-  onAddDevice: (input: NewDeviceInput) => Promise<Device | null>; onSaveEdge: (edge: NetworkEdge) => Promise<void>;
-  onDeleteEdge: (id: string) => Promise<void>; onSaveMapView: (view: MapViewState) => Promise<void>;
+  devices: Device[];
+  edges: NetworkEdge[];
+  mapView: MapViewState;
+  onSelect: (id: string) => void;
+  onPosition: (id: string, changes: Partial<Device>) => Promise<void>;
+  onDeleteDevice: (id: string) => Promise<boolean>;
+  onAddDevice: (input: NewDeviceInput) => Promise<Device | null>;
+  onSaveEdge: (edge: NetworkEdge) => Promise<void>;
+  onDeleteEdge: (id: string) => Promise<void>;
+  onSaveMapView: (view: MapViewState) => Promise<void>;
 }) {
   type FlowData = { [key: string]: unknown; device?: Device; group?: TopologyGroup };
   type FlowNode = Node<FlowData> & { type: 'device' | 'topologyGroup' };
-  const makeNodes = (items: Device[]): FlowNode[] => items.map((device, index) => ({ id: device.id, type: 'device', position: device.position ?? { x: (index % 4) * 260 + 80, y: Math.floor(index / 4) * 160 + 80 }, data: { device } }));
+  const makeNodes = (items: Device[]): FlowNode[] =>
+    items.map((device, index) => ({
+      id: device.id,
+      type: 'device',
+      position: device.position ?? {
+        x: (index % 4) * 260 + 80,
+        y: Math.floor(index / 4) * 160 + 80,
+      },
+      data: { device },
+    }));
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(makeNodes(devices));
   const edgeKey = (source: string, target: string) => [source, target].sort().join('::');
-  const toFlowEdges = (items: NetworkEdge[]): Edge[] => { const seen = new Set<string>(); return items.filter((edge) => { const key=edgeKey(edge.source,edge.target); if(seen.has(key)) return false; seen.add(key); return true; }).map((edge) => ({ id:edge.id, source:edge.source, target:edge.target, className:edge.active===false?'map-edge-inactive':'map-edge-active', style:edge.active===false?{stroke:'#8793a7',strokeWidth:2,strokeDasharray:'7 6'}:{stroke:'#65748a',strokeWidth:2}, selectable:true, type:'smoothstep' })); };
-  const [lineMode,setLineMode]=useState<'all'|'active'|'hidden'>('all');
-  const visibleEdges=useMemo(()=>edges.filter((edge)=>lineMode!=='hidden'&&(lineMode==='all'||(edge.active??true))),[edges,lineMode]);
-  const [flowEdges,setFlowEdges]=useEdgesState<Edge>(toFlowEdges(visibleEdges));
-  const [selectedEdgeId,setSelectedEdgeId]=useState<string|null>(null); const [deleteEdgeOpen,setDeleteEdgeOpen]=useState(false);
-  const [viewport,setViewport]=useState<Viewport>({x:mapView.x,y:mapView.y,zoom:mapView.zoom}); const [dialog,setDialog]=useState<React.ReactNode>(null); const mapCanvasRef=useRef<HTMLDivElement>(null);
-  const [groups, setGroups] = useState<TopologyGroup[]>(() => { try { const saved = JSON.parse(localStorage.getItem('netscope-topology-groups') ?? '[]') as TopologyGroup[]; return saved.map((group, index) => ({ ...group, position: group.position ?? { x: 40 + (index % 3) * 280, y: 35 + Math.floor(index / 3) * 180 } })); } catch { return []; } });
+  const toFlowEdges = (items: NetworkEdge[]): Edge[] => {
+    const seen = new Set<string>();
+    return items
+      .filter((edge) => {
+        const key = edgeKey(edge.source, edge.target);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        className: edge.active === false ? 'map-edge-inactive' : 'map-edge-active',
+        style:
+          edge.active === false
+            ? { stroke: '#8793a7', strokeWidth: 2, strokeDasharray: '7 6' }
+            : { stroke: '#65748a', strokeWidth: 2 },
+        selectable: true,
+        type: 'smoothstep',
+      }));
+  };
+  const [lineMode, setLineMode] = useState<'all' | 'active'>('all');
+  const [showAutoEdges, setShowAutoEdges] = useState(() => {
+    try {
+      return localStorage.getItem('netscope-show-auto-edges') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const toggleAutoEdges = () => {
+    setShowAutoEdges((current) => {
+      const next = !current;
+      localStorage.setItem('netscope-show-auto-edges', String(next));
+      return next;
+    });
+  };
+  const visibleEdges = useMemo(
+    () =>
+      edges.filter(
+        (edge) => (showAutoEdges || edge.manual !== false) && (lineMode === 'all' || (edge.active ?? true))
+      ),
+    [edges, lineMode, showAutoEdges]
+  );
+  const [flowEdges, setFlowEdges] = useEdgesState<Edge>(toFlowEdges(visibleEdges));
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [deleteEdgeOpen, setDeleteEdgeOpen] = useState(false);
+  const [viewport, setViewport] = useState<Viewport>({
+    x: mapView.x,
+    y: mapView.y,
+    zoom: mapView.zoom,
+  });
+  const [dialog, setDialog] = useState<React.ReactNode>(null);
+  const mapCanvasRef = useRef<HTMLDivElement>(null);
+  const [groups, setGroups] = useState<TopologyGroup[]>(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem('netscope-topology-groups') ?? '[]'
+      ) as TopologyGroup[];
+      return saved.map((group, index) => ({
+        ...group,
+        position: group.position ?? {
+          x: 40 + (index % 3) * 280,
+          y: 35 + Math.floor(index / 3) * 180,
+        },
+      }));
+    } catch {
+      return [];
+    }
+  });
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const saveGroups = (next: TopologyGroup[]) => { setGroups(next); localStorage.setItem('netscope-topology-groups', JSON.stringify(next)); };
-  const openGroupDialog = (group?: TopologyGroup) => setDialog(<TopologyGroupDialog devices={devices} group={group} onClose={() => setDialog(null)} onSave={(value) => { const next = group ? groups.map((item) => item.id === group.id ? { ...item, ...value } : item) : [...groups, { ...value, id: crypto.randomUUID(), collapsed: false }]; saveGroups(next); setDialog(null); }} />);
+  const saveGroups = (next: TopologyGroup[]) => {
+    setGroups(next);
+    localStorage.setItem('netscope-topology-groups', JSON.stringify(next));
+  };
+  const openGroupDialog = (group?: TopologyGroup) =>
+    setDialog(
+      <TopologyGroupDialog
+        devices={devices}
+        group={group}
+        onClose={() => setDialog(null)}
+        onSave={(value) => {
+          const next = group
+            ? groups.map((item) => (item.id === group.id ? { ...item, ...value } : item))
+            : [...groups, { ...value, id: crypto.randomUUID(), collapsed: false }];
+          saveGroups(next);
+          setDialog(null);
+        }}
+      />
+    );
   const activeGroup = groups.find((group) => group.id === activeGroupId);
-  const groupNodes: FlowNode[] = groups.map((group, index) => ({
-    id: `group-${group.id}`,
-    type: 'topologyGroup',
-    position: group.position ?? { x: 40 + (index % 3) * 280, y: 35 + Math.floor(index / 3) * 180 },
-    data: { group, devices },
-    draggable: true,
-    selectable: true,
-  }));
+  const groupNodes: FlowNode[] = groups.map((group, index) => {
+    const members = group.deviceIds
+      .map((id) => nodes.find((node) => node.id === id))
+      .filter((node): node is FlowNode => Boolean(node));
+    const nodeWidth = 220;
+    const nodeHeight = 78;
+    const padding = 28;
+    const headerHeight = 42;
+    const fallback = group.position ?? { x: 40 + (index % 3) * 280, y: 35 + Math.floor(index / 3) * 180 };
+    const minX = members.length ? Math.min(...members.map((node) => node.position.x)) : fallback.x + padding;
+    const minY = members.length ? Math.min(...members.map((node) => node.position.y)) : fallback.y + padding + headerHeight;
+    const maxX = members.length ? Math.max(...members.map((node) => node.position.x + nodeWidth)) : minX + nodeWidth;
+    const maxY = members.length ? Math.max(...members.map((node) => node.position.y + nodeHeight)) : minY + nodeHeight;
+    return {
+      id: `group-${group.id}`,
+      type: 'topologyGroup',
+      position: members.length ? { x: minX - padding, y: minY - padding - headerHeight } : fallback,
+      data: { group, devices },
+      draggable: false,
+      selectable: false,
+      zIndex: -1,
+      style: { width: Math.max(280, maxX - minX + padding * 2), height: Math.max(170, maxY - minY + padding * 2 + headerHeight) },
+    };
+  });
   const visibleNodes = activeGroup
     ? nodes.filter((node) => activeGroup.deviceIds.includes(node.id))
     : [...groupNodes, ...nodes];
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
-  const visibleFlowEdges = activeGroup ? flowEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)) : flowEdges;
-  useEffect(()=>setNodes(makeNodes(devices)),[devices,setNodes]); useEffect(()=>{setFlowEdges(toFlowEdges(visibleEdges));setSelectedEdgeId((current)=>current&&edges.some((edge)=>edge.id===current)?current:null)},[visibleEdges,setFlowEdges]); useEffect(()=>setViewport({x:mapView.x,y:mapView.y,zoom:mapView.zoom}),[mapView]);
-  const connect=async(connection:Connection)=>{if(!connection.source||!connection.target||connection.source===connection.target)return;const key=edgeKey(connection.source,connection.target);if(edges.some((edge)=>edgeKey(edge.source,edge.target)===key))return;await onSaveEdge({id:`line-${key}`,source:connection.source,target:connection.target,manual:true})};
-  const add=async(position?:{x:number;y:number})=>setDialog(<TextDialog title="Добавить узел" label="Название устройства" placeholder="Например: Камера в серверной" onClose={()=>setDialog(null)} onSubmit={async(hostname)=>{setDialog(<TextDialog title="Добавить узел" label="IP-адрес или идентификатор" initialValue="manual" onClose={()=>setDialog(null)} onSubmit={async(ip)=>{await onAddDevice({hostname,ip,type:'unknown',position:position??{x:250,y:180}});setDialog(null)}}/> )}}/>);
-  const saveViewport=(next:Viewport)=>{setViewport(next);void onSaveMapView({x:next.x,y:next.y,zoom:next.zoom})}; const autoLayout=()=>void Promise.all(devices.map((device,index)=>onPosition(device.id,{position:{x:80+(index%4)*260,y:80+Math.floor(index/4)*155}}))); const moveGroup=(groupId:string,position:{x:number;y:number})=>{saveGroups(groups.map((group)=>group.id===groupId?{...group,position}:group))};
-  const exportMap=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify({devices,edges},null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='netscope-map.json';link.click();URL.revokeObjectURL(url)};
-  const manualLine=(sourceId?:string)=>setDialog(<SelectDialog title="Связать устройства" fields={[{label:'Первое устройство',value:sourceId??devices[0]?.id??'',options:devices.map((device)=>({value:device.id,label:`${device.hostname||device.ip} · ${device.ip}`}))},{label:'Второе устройство',value:devices.find((device)=>device.id!==sourceId)?.id??devices[1]?.id??'',options:devices.map((device)=>({value:device.id,label:`${device.hostname||device.ip} · ${device.ip}`}))}]} onClose={()=>setDialog(null)} onSubmit={(values)=>{if(values['Первое устройство']!==values['Второе устройство'])void onSaveEdge({id:`line-${edgeKey(values['Первое устройство'],values['Второе устройство'])}`,source:values['Первое устройство'],target:values['Второе устройство'],manual:true});setDialog(null)}}/>);
-  const autoConnect=()=>{if(devices.length<2)return;const root=devices.find((device)=>device.type==='router'||device.type==='switch')??devices[0];void Promise.all(devices.filter((device)=>device.id!==root.id&&!edges.some((edge)=>edgeKey(edge.source,edge.target)===edgeKey(root.id,device.id))).map((device)=>onSaveEdge({id:`line-${edgeKey(root.id,device.id)}`,source:root.id,target:device.id,manual:false})))};
-  type ContextMenu={kind:'pane';x:number;y:number;flowPosition:{x:number;y:number}}|{kind:'node';x:number;y:number;id:string}|{kind:'edge';x:number;y:number;id:string}; const [contextMenu,setContextMenu]=useState<ContextMenu|null>(null);
-  const showContextMenu=(event:MouseEvent|React.MouseEvent,menu:{kind:'pane'}|{kind:'node';id:string}|{kind:'edge';id:string})=>{event.preventDefault();const bounds=mapCanvasRef.current?.getBoundingClientRect();if(!bounds)return;const menuWidth=236;const menuHeight=270;const left=Math.max(8,Math.min(event.clientX-bounds.left,bounds.width-menuWidth-8));const top=Math.max(8,Math.min(event.clientY-bounds.top,bounds.height-menuHeight-8));const flowPosition={x:(event.clientX-bounds.left-viewport.x)/viewport.zoom-110,y:(event.clientY-bounds.top-viewport.y)/viewport.zoom-40};setContextMenu({...menu,x:left,y:top,...(menu.kind==='pane'?{flowPosition}:{})} as ContextMenu)};
-  const contextDevice=contextMenu?.kind==='node'?devices.find((device)=>device.id===contextMenu.id):null; const contextEdge=contextMenu?.kind==='edge'?edges.find((edge)=>edge.id===contextMenu.id):null;
-  const deleteGroup = (group: TopologyGroup) => { saveGroups(groups.filter((item) => item.id !== group.id)); if (activeGroupId === group.id) setActiveGroupId(null); };
-  return <>{dialog}<PageTitle eyebrow="ТОПОЛОГИЯ" title="Карта сети" detail={devices.length?`${devices.length} устройств · ${flowEdges.length} связей`:'Нет узлов для отображения'} action={<div className="map-actions"><button className="secondary-button" onClick={()=>void add()}><Plus size={16}/> Узел</button><button className="secondary-button" onClick={()=>manualLine()}><Link2 size={16}/> Связать</button><button className="secondary-button" onClick={()=>openGroupDialog()}><Plus size={16}/> Группа</button><button className="secondary-button" onClick={autoConnect}><Radar size={16}/> Построить линии</button><button className="secondary-button" onClick={exportMap}><Download size={16}/> Экспорт</button></div>}/><div className="map-toolbar"><div className="map-toolbar-title"><span className="map-status-mark"/> Состояние сети</div><span><span className="legend-dot online"/> В сети <b>{devices.filter((device)=>device.status==='online').length}</b></span><span><span className="legend-dot warning"/> Внимание <b>{devices.filter((device)=>device.status==='warning').length}</b></span><span><span className="legend-dot offline"/> Не в сети <b>{devices.filter((device)=>device.status==='offline').length}</b></span><span className="toolbar-spacer"/><CustomSelect className="line-filter" value={lineMode} options={[{value:'all',label:'Все линии'},{value:'active',label:'Только активные'},{value:'hidden',label:'Скрыть линии'}]} onChange={(value)=>setLineMode(value as typeof lineMode)}/><button className="tool-button" onClick={autoLayout}><CircleGauge size={15}/> Авторасстановка</button>{selectedEdgeId&&<button className="tool-button delete-line-button" onClick={()=>setDeleteEdgeOpen(true)}><Trash2 size={14}/> Удалить линию</button>}</div>{deleteEdgeOpen&&selectedEdgeId&&<ConfirmDialog title="Удалить связь?" message="Связь будет удалена с карты. Это действие нельзя отменить." onClose={()=>setDeleteEdgeOpen(false)} onConfirm={()=>{const selected=edges.find((edge)=>edge.id===selectedEdgeId);if(selected){const key=edgeKey(selected.source,selected.target);void Promise.all(edges.filter((edge)=>edgeKey(edge.source,edge.target)===key).map((edge)=>onDeleteEdge(edge.id)))}setDeleteEdgeOpen(false);setSelectedEdgeId(null)}}/>}<div className="map-canvas" ref={mapCanvasRef} onContextMenu={(event)=>event.preventDefault()}>{devices.length?<ReactFlow nodes={visibleNodes} edges={visibleFlowEdges} nodeTypes={nodeTypes} viewport={viewport} onViewportChange={saveViewport} onConnect={(connection)=>void connect(connection)} onEdgesDelete={(deleted)=>void Promise.all(deleted.map((edge)=>onDeleteEdge(edge.id)))} onNodesChange={onNodesChange} onNodeClick={(_,node)=>{if(node.type==='device') onSelect(node.id)}} onNodeContextMenu={(event,node)=>node.type==='device'&&showContextMenu(event,{kind:'node',id:node.id})} onEdgeClick={(_,edge)=>setSelectedEdgeId(edge.id)} onEdgeContextMenu={(event,edge)=>{setSelectedEdgeId(edge.id);showContextMenu(event,{kind:'edge',id:edge.id})}} onPaneClick={()=>{setSelectedEdgeId(null);setContextMenu(null)}} onPaneContextMenu={(event)=>showContextMenu(event,{kind:'pane'})} onNodeDragStop={(_,node)=>{if(node.type==='device')void onPosition(node.id,{position:node.position});if(node.type==='topologyGroup')moveGroup(node.id.replace('group-',''),node.position)}} deleteKeyCode={['Backspace','Delete']} onNodesDelete={(deleted)=>void Promise.all(deleted.filter((node)=>node.type==='device').map((node)=>onDeleteDevice(node.id)))} fitView={false} proOptions={{hideAttribution:true}}><Background color="#2d394b" gap={24} size={1}/><Controls showInteractive={false}/></ReactFlow>:<EmptyState icon={<MapIcon size={24}/>} title="Карта пуста" detail="Добавьте узел или запустите сканирование локальной сети."/>}{contextMenu&&<div className="map-context-menu" style={{left:contextMenu.x,top:contextMenu.y}} onMouseDown={(event)=>event.stopPropagation()}>{contextMenu.kind==='pane'&&<><button onClick={()=>{void add(contextMenu.flowPosition);setContextMenu(null)}}><Plus size={15}/> ???????? ????</button><button onClick={()=>{setContextMenu(null);autoLayout()}}><CircleGauge size={15}/> ???????????????</button><button onClick={()=>{setContextMenu(null);autoConnect()}}><Radar size={15}/> ????????? ?????</button><button onClick={()=>{setContextMenu(null);manualLine()}}><Link2 size={15}/> ??????? ??????????</button>{groups.length > 0 && <><div className="map-context-separator"/><div className="map-context-section">??????</div>{groups.map((group)=><div className="map-context-group-row" key={group.id}><button onClick={()=>{setActiveGroupId(activeGroupId===group.id?null:group.id);setContextMenu(null)}}><Boxes size={15}/><span>{group.name}</span><small>{group.deviceIds.length}</small></button><button className="map-context-more" aria-label={`???????? ?????? ${group.name}`} onClick={()=>{setContextMenu(null);openGroupDialog(group)}}><MoreHorizontal size={15}/></button><button className="map-context-delete" aria-label={`??????? ?????? ${group.name}`} onClick={()=>{deleteGroup(group);setContextMenu(null)}}><Trash2 size={14}/></button></div>)}</>}</>}
-{contextMenu.kind==='node'&&contextDevice&&<><div className="map-context-title">{contextDevice.hostname||contextDevice.ip}</div><button onClick={()=>{onSelect(contextDevice.id);setContextMenu(null)}}><Server size={15}/> Открыть сведения</button><button onClick={()=>{setContextMenu(null);manualLine(contextDevice.id)}}><Link2 size={15}/> Связать с устройством</button><button className="delete-line-button" onClick={()=>{void onDeleteDevice(contextDevice.id);setContextMenu(null)}}><Trash2 size={15}/> Удалить узел</button></>}{contextMenu.kind==='edge'&&contextEdge&&<><div className="map-context-title">Связь устройств</div><button onClick={()=>{void onSaveEdge({...contextEdge,active:contextEdge.active===false});setContextMenu(null)}}>{contextEdge.active===false?'Сделать линию активной':'Сделать линию неактивной'}</button><button className="delete-line-button" onClick={()=>{setDeleteEdgeOpen(true);setContextMenu(null)}}><Trash2 size={15}/> Удалить линию</button></>}</div>}</div><div className="map-footer"><span><span className="map-footer-dot"/> Перетаскивайте узлы, чтобы изменить схему</span></div></>;
+  const visibleFlowEdges = activeGroup
+    ? flowEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+    : flowEdges;
+  useEffect(() => setNodes(makeNodes(devices)), [devices, setNodes]);
+  useEffect(() => {
+    setFlowEdges(toFlowEdges(visibleEdges));
+    setSelectedEdgeId((current) =>
+      current && edges.some((edge) => edge.id === current) ? current : null
+    );
+  }, [visibleEdges, setFlowEdges]);
+  useEffect(() => setViewport({ x: mapView.x, y: mapView.y, zoom: mapView.zoom }), [mapView]);
+  const connect = async (connection: Connection) => {
+    if (!connection.source || !connection.target || connection.source === connection.target) return;
+    const key = edgeKey(connection.source, connection.target);
+    if (edges.some((edge) => edgeKey(edge.source, edge.target) === key)) return;
+    await onSaveEdge({
+      id: `line-${key}`,
+      source: connection.source,
+      target: connection.target,
+      manual: true,
+    });
+  };
+  const add = async (position?: { x: number; y: number }) =>
+    setDialog(
+      <TextDialog
+        title="Добавить узел"
+        label="Название устройства"
+        placeholder="Например: Камера в серверной"
+        onClose={() => setDialog(null)}
+        onSubmit={async (hostname) => {
+          setDialog(
+            <TextDialog
+              title="Добавить узел"
+              label="IP-адрес или идентификатор"
+              initialValue="manual"
+              onClose={() => setDialog(null)}
+              onSubmit={async (ip) => {
+                await onAddDevice({
+                  hostname,
+                  ip,
+                  type: 'unknown',
+                  position: position ?? { x: 250, y: 180 },
+                });
+                setDialog(null);
+              }}
+            />
+          );
+        }}
+      />
+    );
+  const saveViewport = (next: Viewport) => {
+    setViewport(next);
+    void onSaveMapView({ x: next.x, y: next.y, zoom: next.zoom });
+  };
+  const autoLayout = () =>
+    void Promise.all(
+      devices.map((device, index) =>
+        onPosition(device.id, {
+          position: { x: 80 + (index % 4) * 260, y: 80 + Math.floor(index / 4) * 155 },
+        })
+      )
+    );
+  const moveGroup = (groupId: string, position: { x: number; y: number }) => {
+    saveGroups(groups.map((group) => (group.id === groupId ? { ...group, position } : group)));
+  };
+  const exportMap = () => {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify({ devices, edges }, null, 2)], { type: 'application/json' })
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'netscope-map.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const manualLine = (sourceId?: string) =>
+    setDialog(
+      <SelectDialog
+        title="Связать устройства"
+        fields={[
+          {
+            label: 'Первое устройство',
+            value: sourceId ?? devices[0]?.id ?? '',
+            options: devices.map((device) => ({
+              value: device.id,
+              label: `${device.hostname || device.ip} · ${device.ip}`,
+            })),
+          },
+          {
+            label: 'Второе устройство',
+            value: devices.find((device) => device.id !== sourceId)?.id ?? devices[1]?.id ?? '',
+            options: devices.map((device) => ({
+              value: device.id,
+              label: `${device.hostname || device.ip} · ${device.ip}`,
+            })),
+          },
+        ]}
+        onClose={() => setDialog(null)}
+        onSubmit={(values) => {
+          if (values['Первое устройство'] !== values['Второе устройство'])
+            void onSaveEdge({
+              id: `line-${edgeKey(values['Первое устройство'], values['Второе устройство'])}`,
+              source: values['Первое устройство'],
+              target: values['Второе устройство'],
+              manual: true,
+            });
+          setDialog(null);
+        }}
+      />
+    );
+  const autoConnect = () => {
+    if (devices.length < 2) return;
+    const root =
+      devices.find((device) => device.type === 'router' || device.type === 'switch') ?? devices[0];
+    void Promise.all(
+      devices
+        .filter(
+          (device) =>
+            device.id !== root.id &&
+            !edges.some((edge) => edgeKey(edge.source, edge.target) === edgeKey(root.id, device.id))
+        )
+        .map((device) =>
+          onSaveEdge({
+            id: `line-${edgeKey(root.id, device.id)}`,
+            source: root.id,
+            target: device.id,
+            manual: false,
+          })
+        )
+    );
+  };
+  type ContextMenu =
+    | { kind: 'pane'; x: number; y: number; maxHeight: number; flowPosition: { x: number; y: number } }
+    | { kind: 'node'; x: number; y: number; maxHeight: number; id: string }
+    | { kind: 'edge'; x: number; y: number; maxHeight: number; id: string };
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const showContextMenu = (
+    event: MouseEvent | React.MouseEvent,
+    menu: { kind: 'pane' } | { kind: 'node'; id: string } | { kind: 'edge'; id: string }
+  ) => {
+    event.preventDefault();
+    const bounds = mapCanvasRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const menuWidth = 236;
+    const estimatedHeight = menu.kind === 'pane' ? 175 + groups.length * 32 : menu.kind === 'node' ? 150 : 115;
+    const right = Math.min(bounds.right, window.innerWidth);
+    const bottom = Math.min(bounds.bottom, window.innerHeight);
+    const maxHeight = Math.max(96, bottom - bounds.top - 16);
+    const leftCandidate = event.clientX + menuWidth + 8 <= right ? event.clientX + 8 : event.clientX - menuWidth - 8;
+    const topCandidate = event.clientY + estimatedHeight + 8 <= bottom ? event.clientY + 8 : event.clientY - Math.min(estimatedHeight, maxHeight) - 8;
+    const left = Math.max(bounds.left + 8, Math.min(leftCandidate, right - menuWidth - 8));
+    const top = Math.max(bounds.top + 8, Math.min(topCandidate, bottom - Math.min(estimatedHeight, maxHeight) - 8));
+    const flowPosition = {
+      x: (event.clientX - bounds.left - viewport.x) / viewport.zoom - 110,
+      y: (event.clientY - bounds.top - viewport.y) / viewport.zoom - 40,
+    };
+    setContextMenu({
+      ...menu,
+      x: left,
+      y: top,
+      maxHeight,
+      ...(menu.kind === 'pane' ? { flowPosition } : {}),
+    } as ContextMenu);
+  };
+  const contextDevice =
+    contextMenu?.kind === 'node' ? devices.find((device) => device.id === contextMenu.id) : null;
+  const contextEdge =
+    contextMenu?.kind === 'edge' ? edges.find((edge) => edge.id === contextMenu.id) : null;
+  const deleteGroup = (group: TopologyGroup) => {
+    saveGroups(groups.filter((item) => item.id !== group.id));
+    if (activeGroupId === group.id) setActiveGroupId(null);
+  };
+  return (
+    <>
+      {dialog}
+      <PageTitle
+        eyebrow="ТОПОЛОГИЯ"
+        title="Карта сети"
+        detail={
+          devices.length
+            ? `${devices.length} устройств · ${flowEdges.length} связей`
+            : 'Нет узлов для отображения'
+        }
+        action={
+          <div className="map-actions">
+            <button className="secondary-button" onClick={() => void add()}>
+              <Plus size={16} /> Узел
+            </button>
+            <button className="secondary-button" onClick={() => manualLine()}>
+              <Link2 size={16} /> Связать
+            </button>
+            <button className="secondary-button" onClick={() => openGroupDialog()}>
+              <Plus size={16} /> Группа
+            </button>
+            <button className="secondary-button" onClick={autoConnect}>
+              <Radar size={16} /> Построить линии
+            </button>
+            <button className="secondary-button" onClick={exportMap}>
+              <Download size={16} /> Экспорт
+            </button>
+          </div>
+        }
+      />
+      <div className="map-toolbar">
+        <div className="map-toolbar-title">
+          <span className="map-status-mark" /> Состояние сети
+        </div>
+        <span>
+          <span className="legend-dot online" /> В сети{' '}
+          <b>{devices.filter((device) => device.status === 'online').length}</b>
+        </span>
+        <span>
+          <span className="legend-dot warning" /> Внимание{' '}
+          <b>{devices.filter((device) => device.status === 'warning').length}</b>
+        </span>
+        <span>
+          <span className="legend-dot offline" /> Не в сети{' '}
+          <b>{devices.filter((device) => device.status === 'offline').length}</b>
+        </span>
+        <span className="toolbar-spacer" />
+        <CustomSelect
+          className="line-filter"
+          value={lineMode}
+          options={[
+            { value: 'all', label: 'Все линии' },
+            { value: 'active', label: 'Только активные' },
+          ]}
+          onChange={(value) => setLineMode(value as typeof lineMode)}
+        />
+        <label className="map-auto-edges-toggle">
+          <input type="checkbox" checked={showAutoEdges} onChange={toggleAutoEdges} />
+          <span className="map-toggle-track" aria-hidden="true"><span /></span>
+          Показывать автоматически построенные связи
+        </label>
+        <button className="tool-button" onClick={autoLayout}>
+          <CircleGauge size={15} /> Авторасстановка
+        </button>
+        {selectedEdgeId && (
+          <button
+            className="tool-button delete-line-button"
+            onClick={() => setDeleteEdgeOpen(true)}
+          >
+            <Trash2 size={14} /> Удалить линию
+          </button>
+        )}
+      </div>
+      {deleteEdgeOpen && selectedEdgeId && (
+        <ConfirmDialog
+          title="Удалить связь?"
+          message="Связь будет удалена с карты. Это действие нельзя отменить."
+          onClose={() => setDeleteEdgeOpen(false)}
+          onConfirm={() => {
+            const selected = edges.find((edge) => edge.id === selectedEdgeId);
+            if (selected) {
+              const key = edgeKey(selected.source, selected.target);
+              void Promise.all(
+                edges
+                  .filter((edge) => edgeKey(edge.source, edge.target) === key)
+                  .map((edge) => onDeleteEdge(edge.id))
+              );
+            }
+            setDeleteEdgeOpen(false);
+            setSelectedEdgeId(null);
+          }}
+        />
+      )}
+      <div
+        className="map-canvas"
+        ref={mapCanvasRef}
+        onContextMenu={(event) => event.preventDefault()}
+      >
+        {devices.length ? (
+          <ReactFlow
+            nodes={visibleNodes}
+            edges={visibleFlowEdges}
+            nodeTypes={nodeTypes}
+            viewport={viewport}
+            onViewportChange={saveViewport}
+            onConnect={(connection) => void connect(connection)}
+            onEdgesDelete={(deleted) =>
+              void Promise.all(deleted.map((edge) => onDeleteEdge(edge.id)))
+            }
+            onNodesChange={onNodesChange}
+            onNodeClick={(_, node) => {
+              if (node.type === 'device') onSelect(node.id);
+            }}
+            onNodeContextMenu={(event, node) =>
+              node.type === 'device' && showContextMenu(event, { kind: 'node', id: node.id })
+            }
+            onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
+            onEdgeContextMenu={(event, edge) => {
+              setSelectedEdgeId(edge.id);
+              showContextMenu(event, { kind: 'edge', id: edge.id });
+            }}
+            onPaneClick={() => {
+              setSelectedEdgeId(null);
+              setContextMenu(null);
+            }}
+            onPaneContextMenu={(event) => showContextMenu(event, { kind: 'pane' })}
+            onNodeDragStop={(_, node) => {
+              if (node.type === 'device') void onPosition(node.id, { position: node.position });
+              if (node.type === 'topologyGroup')
+                moveGroup(node.id.replace('group-', ''), node.position);
+            }}
+            deleteKeyCode={['Backspace', 'Delete']}
+            onNodesDelete={(deleted) =>
+              void Promise.all(
+                deleted
+                  .filter((node) => node.type === 'device')
+                  .map((node) => onDeleteDevice(node.id))
+              )
+            }
+            fitView={false}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background color="#2d394b" gap={24} size={1} />
+            <Controls showInteractive={false} />
+          </ReactFlow>
+        ) : (
+          <EmptyState
+            icon={<MapIcon size={24} />}
+            title="Карта пуста"
+            detail="Добавьте узел или запустите сканирование локальной сети."
+          />
+        )}
+        {contextMenu && (
+          <div
+            className="map-context-menu"
+            style={{ left: contextMenu.x, top: contextMenu.y, maxHeight: contextMenu.maxHeight }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            {contextMenu.kind === 'pane' && (
+              <>
+                <button
+                  onClick={() => {
+                    void add(contextMenu.flowPosition);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Plus size={15} /> Добавить узел
+                </button>
+                <button
+                  onClick={() => {
+                    setContextMenu(null);
+                    autoLayout();
+                  }}
+                >
+                  <CircleGauge size={15} /> Авторасстановка
+                </button>
+                <button
+                  onClick={() => {
+                    setContextMenu(null);
+                    autoConnect();
+                  }}
+                >
+                  <Radar size={15} /> Построить линии
+                </button>
+                <button
+                  onClick={() => {
+                    setContextMenu(null);
+                    manualLine();
+                  }}
+                >
+                  <Link2 size={15} /> Связать устройства
+                </button>
+                {groups.length > 0 && (
+                  <>
+                    <div className="map-context-separator" />
+                    <div className="map-context-section">ГРУППЫ</div>
+                    {groups.map((group) => (
+                      <div className="map-context-group-row" key={group.id}>
+                        <button
+                          onClick={() => {
+                            setActiveGroupId(activeGroupId === group.id ? null : group.id);
+                            setContextMenu(null);
+                          }}
+                        >
+                          <Boxes size={15} />
+                          <span>{group.name}</span>
+                          <small>{group.deviceIds.length}</small>
+                        </button>
+                        <button
+                          className="map-context-more"
+                          aria-label={`Изменить группу ${group.name}`}
+                          onClick={() => {
+                            setContextMenu(null);
+                            openGroupDialog(group);
+                          }}
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
+                        <button
+                          className="map-context-delete"
+                          aria-label={`Удалить группу ${group.name}`}
+                          onClick={() => {
+                            deleteGroup(group);
+                            setContextMenu(null);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+            {contextMenu.kind === 'node' && contextDevice && (
+              <>
+                <div className="map-context-title">
+                  {contextDevice.hostname || contextDevice.ip}
+                </div>
+                <button
+                  onClick={() => {
+                    onSelect(contextDevice.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Server size={15} /> Открыть сведения
+                </button>
+                <button
+                  onClick={() => {
+                    setContextMenu(null);
+                    manualLine(contextDevice.id);
+                  }}
+                >
+                  <Link2 size={15} /> Связать с устройством
+                </button>
+                <button
+                  className="delete-line-button"
+                  onClick={() => {
+                    void onDeleteDevice(contextDevice.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Trash2 size={15} /> Удалить узел
+                </button>
+              </>
+            )}
+            {contextMenu.kind === 'edge' && contextEdge && (
+              <>
+                <div className="map-context-title">Связь устройств</div>
+                <button
+                  onClick={() => {
+                    void onSaveEdge({
+                      ...contextEdge,
+                      active: contextEdge.active === false,
+                    });
+                    setContextMenu(null);
+                  }}
+                >
+                  {contextEdge.active === false
+                    ? 'Сделать линию активной'
+                    : 'Сделать линию неактивной'}
+                </button>
+                <button
+                  className="delete-line-button"
+                  onClick={() => {
+                    setDeleteEdgeOpen(true);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Trash2 size={15} /> Удалить линию
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="map-footer">
+        <span>
+          <span className="map-footer-dot" /> Перетаскивайте узлы, чтобы изменить схему
+        </span>
+      </div>
+    </>
+  );
 }
 
 function DevicesView({
@@ -541,7 +1123,7 @@ function DevicesView({
     !allVisibleSelected && devices.some((device) => selectedIds.includes(device.id));
   const toggle = (id: string) =>
     setSelectedIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
     );
   const clearSelection = () => setSelectedIds([]);
   const removeSelected = () => {
@@ -603,7 +1185,10 @@ function DevicesView({
             value={filter}
             options={[
               { value: 'all', label: 'Все типы' },
-              ...Object.entries(typeLabels).map(([value, label]) => ({ value, label })),
+              ...Object.entries(typeLabels).map(([value, label]) => ({
+                value,
+                label,
+              })),
             ]}
             onChange={(value) => onFilterChange(value as DeviceType | 'all')}
           />
@@ -634,8 +1219,8 @@ function DevicesView({
                       allVisibleSelected
                         ? selectedIds.filter((id) => !devices.some((device) => device.id === id))
                         : Array.from(
-                            new Set([...selectedIds, ...devices.map((device) => device.id)]),
-                          ),
+                            new Set([...selectedIds, ...devices.map((device) => device.id)])
+                          )
                     )
                   }
                 />
@@ -919,7 +1504,7 @@ function AlertsView() {
     },
   ];
   const [rules, setRules] = useState<Rule[]>(
-    () => JSON.parse(localStorage.getItem('netscope-alert-rules') ?? 'null') ?? defaults,
+    () => JSON.parse(localStorage.getItem('netscope-alert-rules') ?? 'null') ?? defaults
   );
   const [editing, setEditing] = useState<Rule | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Rule | null>(null);
@@ -974,8 +1559,8 @@ function AlertsView() {
                   onClick={() =>
                     save(
                       rules.map((item) =>
-                        item.id === rule.id ? { ...item, enabled: !item.enabled } : item,
-                      ),
+                        item.id === rule.id ? { ...item, enabled: !item.enabled } : item
+                      )
                     )
                   }
                 >
@@ -1150,7 +1735,7 @@ function SettingsView({
 }) {
   const [saved, setSaved] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(
-    () => localStorage.getItem('netscope-auto-refresh') !== 'false',
+    () => localStorage.getItem('netscope-auto-refresh') !== 'false'
   );
   const save = () => {
     localStorage.setItem('netscope-auto-refresh', String(autoRefresh));
@@ -1382,7 +1967,10 @@ function ScannerPanel({
             ]}
             onChange={(value) => {
               const selected = interfaces.find((item) => item.name === value);
-              onConfig({ interfaceName: value, subnet: selected?.cidr ?? scan.subnet });
+              onConfig({
+                interfaceName: value,
+                subnet: selected?.cidr ?? scan.subnet,
+              });
             }}
           />
         </label>
