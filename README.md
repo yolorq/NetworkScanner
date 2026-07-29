@@ -131,4 +131,4 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 ## Лицензия
 
-Лицензия проекта пока не указана.
+Проект распространяется по лицензии [MIT](./LICENSE). Полный текст лицензии находится в файле [LICENSE](./LICENSE).

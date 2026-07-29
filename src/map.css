@@ -113,6 +113,8 @@
   padding: 12px 14px;
   gap: 11px;
   box-shadow: 0 12px 28px #05091099;
+  position: relative;
+  overflow: visible;
 }
 .device-node {
   display: grid;
@@ -139,6 +141,9 @@
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
+  display: grid;
+  place-items: center;
+  line-height: 0;
 }
 .node-copy {
   gap: 3px;
@@ -178,6 +183,7 @@
   opacity: 1 !important;
   background: #7b8ba3;
   border: 2px solid #111923;
+  z-index: 3;
 }
 .node-target {
   left: -5px;
@@ -196,7 +202,9 @@
 .map-context-menu {
   position: absolute;
   z-index: 20;
-  width: 220px;
+  width: 236px;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
   padding: 5px;
   background: #171f2c;
   border: 1px solid #3a4659;
@@ -238,6 +246,74 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.map-context-menu .map-context-group-row button svg {
+  flex: none;
+}
+.map-context-section {
+  padding: 7px 9px 4px;
+  color: #778499;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.map-context-group-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  gap: 2px;
+  align-items: center;
+}
+.map-context-group-row > button:first-child {
+  min-width: 0;
+}
+.map-context-group-row > button:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-context-group-row small {
+  margin-left: auto;
+  color: #7e8b9d;
+}
+.map-context-group-row .map-context-more,
+.map-context-group-row .map-context-delete {
+  justify-content: center;
+  padding: 0;
+}
+.map-context-group-row .map-context-more svg { color: #8f9bb0; }
+.map-context-group-row .map-context-delete svg { color: #f38a96; }
+.topology-group-node {
+  width: 220px;
+  padding: 11px 13px 10px;
+  border: 1px solid #574e9b;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #28244c, #191b32);
+  box-shadow: 0 10px 24px #05091080;
+}
+.topology-group-node-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #eeeaff;
+}
+.topology-group-node-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.topology-group-node-heading small { margin-left: auto; color: #b3aaff; font-size: 10px; }
+.topology-group-node-icon {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  color: #b1a5ff;
+  background: #403a70;
+  border-radius: 7px;
+}
+.topology-group-node-caption { margin-top: 7px; color: #8b83c6; font-size: 8px; letter-spacing: .1em; }
 .map-context-separator {
   height: 1px;
   margin: 5px 4px;

@@ -2,6 +2,7 @@
 name = "netscope"
 version = "0.1.0"
 description = "Обнаружение и мониторинг локальной сети"
+license = "MIT"
 authors = ["NetScope"]
 edition = "2021"
 
