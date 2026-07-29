@@ -119,4 +119,5 @@ export interface TopologyGroup {
   name: string;
   deviceIds: string[];
   collapsed: boolean;
+  position?: { x: number; y: number };
 }
