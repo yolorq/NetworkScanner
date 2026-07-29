@@ -39,6 +39,9 @@ interface AppState {
   isScanning: boolean;
   scanMessage: string | null;
   error: string | null;
+  loadError: string | null;
+  isLoading: boolean;
+  isLoaded: boolean;
   search: string;
   load: () => Promise<void>;
   setView: (view: ViewMode) => void;
@@ -57,8 +60,8 @@ interface AppState {
 }
 
 function readScanSettings(): Partial<ScanConfig> {
-  if (typeof localStorage === 'undefined') return {};
   try {
+    if (typeof localStorage === 'undefined') return {};
     const saved = JSON.parse(localStorage.getItem('netscope-scan-settings') ?? '{}');
     return saved && typeof saved === 'object' ? saved : {};
   } catch {
@@ -74,6 +77,35 @@ const defaultScan: ScanConfig = {
   ...readScanSettings(),
 };
 
+const LOAD_TIMEOUT_MS = 15_000;
+let latestLoadRequest = 0;
+
+function withTimeout<T>(promise: Promise<T>, operation: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(
+        () => reject(new Error(`${operation}: превышено время ожидания ответа.`)),
+        LOAD_TIMEOUT_MS,
+      );
+    }),
+  ]);
+}
+
+function asArray<T>(value: unknown, operation: string): T[] {
+  if (!Array.isArray(value)) throw new Error(`${operation}: сервер вернул некорректный JSON.`);
+  return value as T[];
+}
+
+function asMapView(value: unknown): MapViewState {
+  if (!value || typeof value !== 'object') throw new Error('Карта: сервер вернул некорректный JSON.');
+  const map = value as Partial<MapViewState>;
+  if (![map.x, map.y, map.zoom].every((item) => typeof item === 'number' && Number.isFinite(item))) {
+    throw new Error('Карта: сервер вернул некорректный вид карты.');
+  }
+  return { x: map.x!, y: map.y!, zoom: Math.max(0.1, map.zoom!) };
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   devices: [],
   events: [],
@@ -86,31 +118,50 @@ export const useAppStore = create<AppState>((set, get) => ({
   isScanning: false,
   scanMessage: null,
   error: null,
+  loadError: null,
+  isLoading: false,
+  isLoaded: false,
   search: '',
   load: async () => {
+    const requestId = ++latestLoadRequest;
+    set({ isLoading: true, loadError: null });
     try {
-      const [networkInterfaces, devices, events, edges, mapView] = await Promise.all([
-        getInterfaces(),
-        loadDevices(),
-        loadEvents(),
-        loadEdges(),
-        loadMapView(),
-      ]);
-      const first = networkInterfaces.find((item) => item.active) ?? networkInterfaces[0];
+      const [rawInterfaces, rawDevices, rawEvents, rawEdges, rawMapView] = await withTimeout(
+        Promise.all([
+          getInterfaces(),
+          loadDevices(),
+          loadEvents(),
+          loadEdges(),
+          loadMapView(),
+        ]),
+        'Загрузка данных топологии',
+      );
+      const networkInterfaces = asArray<InterfaceInfo>(rawInterfaces, 'Сетевые интерфейсы');
+      const devices = asArray<Device>(rawDevices, 'Устройства');
+      const events = asArray<NetworkEvent>(rawEvents, 'События');
+      const edges = asArray<NetworkEdge>(rawEdges, 'Связи');
+      const mapView = asMapView(rawMapView);
+      const validDevices = devices.filter((device) => device && typeof device.id === 'string');
+      const validEdges = edges.filter(
+        (edge) => edge && typeof edge.id === 'string' && typeof edge.source === 'string' && typeof edge.target === 'string',
+      );
+      const validEvents = events.filter((event) => event && typeof event.id === 'string');
+      const validInterfaces = networkInterfaces.filter((item) => item && typeof item.name === 'string');
+      const first = validInterfaces.find((item) => item.active) ?? validInterfaces[0];
       // A scan creates fresh device ids. Rebind saved lines by IP where possible
       // so links do not multiply after the next scan.
       const currentDevices = get().devices;
       const oldIdToIp = new Map(currentDevices.map((device) => [device.id, device.ip]));
-      const newIpToId = new Map(devices.map((device) => [device.ip, device.id]));
-      const normalizedEdges = edges
+      const newIpToId = new Map(validDevices.map((device) => [device.ip, device.id]));
+      const normalizedEdges = validEdges
         .map((edge) => ({
           ...edge,
           source:
-            devices.find((device) => device.id === edge.source)?.id ??
+            validDevices.find((device) => device.id === edge.source)?.id ??
             newIpToId.get(oldIdToIp.get(edge.source) ?? '') ??
             edge.source,
           target:
-            devices.find((device) => device.id === edge.target)?.id ??
+            validDevices.find((device) => device.id === edge.target)?.id ??
             newIpToId.get(oldIdToIp.get(edge.target) ?? '') ??
             edge.target,
         }))
@@ -122,10 +173,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                 [edge.source, edge.target].sort().join('::'),
             ) === index,
         );
+      if (requestId !== latestLoadRequest) return;
       set({
-        interfaces: networkInterfaces,
-        devices,
-        events,
+        interfaces: validInterfaces,
+        devices: validDevices,
+        events: validEvents,
         edges: normalizedEdges,
         mapView,
         scan: {
@@ -134,11 +186,19 @@ export const useAppStore = create<AppState>((set, get) => ({
           interfaceName: get().scan.interfaceName || first?.name || '',
         },
         error: null,
+        loadError: null,
+        isLoaded: true,
       });
     } catch (error) {
+      if (requestId !== latestLoadRequest) return;
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить данные топологии.';
       set({
-        error: error instanceof Error ? error.message : 'Не удалось загрузить данные приложения.',
+        error: message,
+        loadError: message,
+        isLoaded: false,
       });
+    } finally {
+      if (requestId === latestLoadRequest) set({ isLoading: false });
     }
   },
   setView: (view) => set({ view }),
@@ -225,8 +285,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setScanConfig: (config) =>
     set((state) => {
       const scan = { ...state.scan, ...config };
-      if (typeof localStorage !== 'undefined')
-        localStorage.setItem('netscope-scan-settings', JSON.stringify(scan));
+      try {
+        if (typeof localStorage !== 'undefined')
+          localStorage.setItem('netscope-scan-settings', JSON.stringify(scan));
+      } catch {
+        // Settings persistence is optional.
+      }
       return { scan };
     }),
   startScan: async () => {

@@ -30,6 +30,18 @@
   background: #11161e;
   box-shadow: 0 18px 50px #0002;
 }
+.map-state {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: #cbd3e0;
+  text-align: center;
+}
+.map-state span { color: #7f8ca0; font-size: 11px; }
+.map-state-error { color: #f0a3ad; }
+.map-state-error .secondary-button { margin-top: 4px; }
 .map-footer {
   height: 38px;
   display: flex;
@@ -91,6 +103,12 @@
   stroke: #65748a;
   stroke-dasharray: none;
 }
+.react-flow__edge.map-edge-related .react-flow__edge-path {
+  stroke: #b1a5ff;
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 4px #9d92ff99);
+}
+.react-flow__edge.map-edge-dimmed .react-flow__edge-path { opacity: .18; }
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #b1a5ff;
   opacity: 1;
@@ -187,18 +205,27 @@
   z-index: 3;
 }
 .react-flow__handle.node-target {
-  left: -8px !important;
+  left: 50% !important;
   right: auto !important;
-  top: 50% !important;
+  top: -8px !important;
   bottom: auto !important;
-  transform: translateY(-50%) !important;
+  transform: translateX(-50%) !important;
 }
+.device-node.is-connected { border-color: #8b7ff0; box-shadow: 0 0 0 2px #9d92ff22, 0 12px 28px #05091099; }
+.device-node.status-node-offline { border-color: #8a4b5a; }
+.device-node.status-node-warning { border-color: #8d713e; }
+.device-node.status-node-online { border-color: #356d66; }
+.node-group-label { position: absolute; left: 12px; bottom: -17px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a79cff; font-size: 8px; opacity: .9; }
+.device-node-tooltip { position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 20; width: 235px; display: grid; gap: 4px; padding: 10px 11px; color: #b9c4d3; background: #171f2c; border: 1px solid #46536a; border-radius: 7px; box-shadow: 0 14px 30px #000b; font-size: 9px; line-height: 1.3; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .15s ease, transform .15s ease; }
+.device-node-tooltip strong { color: #f0f3f8; font-size: 10px; }
+.device-node-tooltip b { color: #8594aa; font-weight: 600; }
+.device-node:hover .device-node-tooltip, .device-node:focus-within .device-node-tooltip { opacity: 1; transform: translate(-50%, 0); }
 .react-flow__handle.node-source {
-  right: -8px !important;
-  left: auto !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: -8px !important;
+  transform: translateX(-50%) !important;
 }
 .node-handle:hover {
   background: #a99cff;
@@ -300,8 +327,10 @@
   box-shadow:
     inset 0 0 0 1px #a69bff14,
     0 10px 24px #05091040;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: grab;
 }
+.topology-group-node:active { cursor: grabbing; }
 .topology-group-node-heading {
   display: flex;
   align-items: center;
@@ -443,6 +472,8 @@
 .map-auto-edges-toggle input:checked + .map-toggle-track {
   background: #6559bf;
 }
+.map-filter-select { width: 132px; flex: none; }
+.map-filter-select .custom-select-trigger { height: 28px; font-size: 10px; background: #1b222d; }
 .map-auto-edges-toggle input:checked + .map-toggle-track span {
   transform: translateX(12px);
   background: #f2efff;

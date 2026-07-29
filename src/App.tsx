@@ -44,7 +44,6 @@ import {
   type Edge,
   type Node,
   type ReactFlowInstance,
-  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from './store';
@@ -72,17 +71,17 @@ const nodeTypes = { device: DeviceNode, topologyGroup: TopologyGroupNode };
 
 export default function App() {
   const {
-    devices,
     events,
-    edges,
     interfaces,
-    mapView,
     selectedDeviceId,
     view,
     scan,
     isScanning,
     scanMessage,
     error,
+    loadError,
+    isLoading,
+    isLoaded,
     search,
     load,
     setView,
@@ -99,17 +98,32 @@ export default function App() {
     stopScan,
     setScanConfig,
   } = useAppStore();
+
+  const devices = useAppStore((s) => s.devices);
+  const edges = useAppStore((s) => s.edges);
+  const mapView = useAppStore((s) => s.mapView);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof localStorage === 'undefined') return false;
-    return localStorage.getItem('netscope-sidebar-collapsed') === 'true';
+    try {
+      return (
+        typeof localStorage !== 'undefined' &&
+        localStorage.getItem('netscope-sidebar-collapsed') === 'true'
+      );
+    } catch {
+      return false;
+    }
   });
   const [searchOpen, setSearchOpen] = useState(false);
   const [filter, setFilter] = useState<DeviceType | 'all'>(() => {
-    if (typeof localStorage === 'undefined') return 'all';
-    const saved = localStorage.getItem('netscope-device-filter');
-    return saved === 'all' || (saved && Object.hasOwn(typeLabels, saved))
-      ? (saved as DeviceType | 'all')
-      : 'all';
+    try {
+      const saved =
+        typeof localStorage === 'undefined' ? null : localStorage.getItem('netscope-device-filter');
+      return saved === 'all' || (saved && Object.hasOwn(typeLabels, saved))
+        ? (saved as DeviceType | 'all')
+        : 'all';
+    } catch {
+      return 'all';
+    }
   });
   const [showScanner, setShowScanner] = useState(false);
   const [dialog, setDialog] = useState<React.ReactNode>(null);
@@ -146,7 +160,11 @@ export default function App() {
   const toggleSidebar = () => {
     setSidebarCollapsed((current) => {
       const next = !current;
-      localStorage.setItem('netscope-sidebar-collapsed', String(next));
+      try {
+        localStorage.setItem('netscope-sidebar-collapsed', String(next));
+      } catch {
+        /* optional persistence */
+      }
       return next;
     });
   };
@@ -207,6 +225,11 @@ export default function App() {
           <div className="error-banner">
             <AlertCircle size={17} />
             <span>{error}</span>
+            {loadError && (
+              <button className="error-retry" onClick={() => void load()}>
+                Повторить
+              </button>
+            )}
             <button onClick={() => useAppStore.setState({ error: null })}>
               <X size={15} />
             </button>
@@ -226,6 +249,10 @@ export default function App() {
               devices={visibleDevices}
               edges={edges}
               mapView={mapView}
+              isLoading={isLoading}
+              isLoaded={isLoaded}
+              loadError={loadError}
+              onRetry={() => void load()}
               onSelect={selectDevice}
               onPosition={updateDevice}
               onDeleteDevice={deleteDevice}
@@ -244,7 +271,11 @@ export default function App() {
               onDeleteMany={deleteDevices}
               onFilterChange={(value) => {
                 setFilter(value);
-                localStorage.setItem('netscope-device-filter', value);
+                try {
+                  localStorage.setItem('netscope-device-filter', value);
+                } catch {
+                  /* optional persistence */
+                }
               }}
             />
           )}
@@ -467,6 +498,10 @@ function MapView({
   devices,
   edges,
   mapView,
+  isLoading,
+  isLoaded,
+  loadError,
+  onRetry,
   onSelect,
   onPosition,
   onDeleteDevice,
@@ -478,6 +513,10 @@ function MapView({
   devices: Device[];
   edges: NetworkEdge[];
   mapView: MapViewState;
+  isLoading: boolean;
+  isLoaded: boolean;
+  loadError: string | null;
+  onRetry: () => void;
   onSelect: (id: string) => void;
   onPosition: (id: string, changes: Partial<Device>) => Promise<void>;
   onDeleteDevice: (id: string) => Promise<boolean>;
@@ -492,13 +531,32 @@ function MapView({
     items.map((device, index) => ({
       id: device.id,
       type: 'device',
-      position: device.position ?? {
-        x: (index % 4) * 260 + 80,
-        y: Math.floor(index / 4) * 160 + 80,
-      },
+      position:
+        device.position && Number.isFinite(device.position.x) && Number.isFinite(device.position.y)
+          ? device.position
+          : {
+              x: (index % 4) * 260 + 80,
+              y: Math.floor(index / 4) * 160 + 80,
+            },
       data: { device },
     }));
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(makeNodes(devices));
+  const [mapTypeFilter, setMapTypeFilter] = useState<DeviceType | 'all'>(() => {
+    try {
+      return (localStorage.getItem('netscope-map-type-filter') as DeviceType | 'all') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [mapStatusFilter, setMapStatusFilter] = useState<DeviceStatus | 'all'>('all');
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const updateSelectedNodeIds = (next: string[] | ((current: string[]) => string[])) =>
+    setSelectedNodeIds((current) => {
+      const value = typeof next === 'function' ? next(current) : next;
+      return value.length === current.length && value.every((id, index) => id === current[index])
+        ? current
+        : value;
+    });
   const edgeKey = (source: string, target: string) => [source, target].sort().join('::');
   const toFlowEdges = (items: NetworkEdge[]): Edge[] => {
     const seen = new Set<string>();
@@ -533,39 +591,53 @@ function MapView({
   const toggleAutoEdges = () => {
     setShowAutoEdges((current) => {
       const next = !current;
-      localStorage.setItem('netscope-show-auto-edges', String(next));
+      try {
+        localStorage.setItem('netscope-show-auto-edges', String(next));
+      } catch {
+        /* optional persistence */
+      }
       return next;
     });
   };
   const visibleEdges = useMemo(
     () =>
       edges.filter(
-        (edge) => (showAutoEdges || edge.manual !== false) && (lineMode === 'all' || (edge.active ?? true))
+        (edge) =>
+          (showAutoEdges || edge.manual !== false) && (lineMode === 'all' || (edge.active ?? true))
       ),
     [edges, lineMode, showAutoEdges]
   );
   const [flowEdges, setFlowEdges] = useEdgesState<Edge>(toFlowEdges(visibleEdges));
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [deleteEdgeOpen, setDeleteEdgeOpen] = useState(false);
-  const [viewport, setViewport] = useState<Viewport>({
-    x: mapView.x,
-    y: mapView.y,
-    zoom: mapView.zoom,
-  });
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const mapCanvasRef = useRef<HTMLDivElement>(null);
   const [groups, setGroups] = useState<TopologyGroup[]>(() => {
     try {
-      const saved = JSON.parse(
-        localStorage.getItem('netscope-topology-groups') ?? '[]'
-      ) as TopologyGroup[];
-      return saved.map((group, index) => ({
-        ...group,
-        position: group.position ?? {
-          x: 40 + (index % 3) * 280,
-          y: 35 + Math.floor(index / 3) * 180,
-        },
-      }));
+      const parsed: unknown = JSON.parse(localStorage.getItem('netscope-topology-groups') ?? '[]');
+      if (!Array.isArray(parsed)) return [];
+      // Groups without an explicit position are laid out around their
+      // devices below. Do not materialize the fallback here, otherwise the
+      // container would lose its relationship with the members on first load.
+      return parsed.flatMap((item): TopologyGroup[] => {
+        if (!item || typeof item !== 'object') return [];
+        const value = item as Partial<TopologyGroup>;
+        if (typeof value.id !== 'string' || typeof value.name !== 'string') return [];
+        const position = value.position;
+        return [
+          {
+            id: value.id,
+            name: value.name,
+            deviceIds: Array.isArray(value.deviceIds)
+              ? value.deviceIds.filter((id): id is string => typeof id === 'string')
+              : [],
+            collapsed: value.collapsed === true,
+            ...(position && Number.isFinite(position.x) && Number.isFinite(position.y)
+              ? { position }
+              : {}),
+          },
+        ];
+      });
     } catch {
       return [];
     }
@@ -573,7 +645,11 @@ function MapView({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const saveGroups = (next: TopologyGroup[]) => {
     setGroups(next);
-    localStorage.setItem('netscope-topology-groups', JSON.stringify(next));
+    try {
+      localStorage.setItem('netscope-topology-groups', JSON.stringify(next));
+    } catch {
+      // The map remains usable when storage is unavailable or corrupted.
+    }
   };
   const openGroupDialog = (group?: TopologyGroup) =>
     setDialog(
@@ -591,38 +667,121 @@ function MapView({
       />
     );
   const activeGroup = groups.find((group) => group.id === activeGroupId);
-  const groupNodes: FlowNode[] = groups.map((group, index) => {
-    const members = group.deviceIds
-      .map((id) => nodes.find((node) => node.id === id))
-      .filter((node): node is FlowNode => Boolean(node));
-    const nodeWidth = 220;
-    const nodeHeight = 78;
-    const padding = 28;
-    const headerHeight = 42;
-    const fallback = group.position ?? { x: 40 + (index % 3) * 280, y: 35 + Math.floor(index / 3) * 180 };
-    const minX = members.length ? Math.min(...members.map((node) => node.position.x)) : fallback.x + padding;
-    const minY = members.length ? Math.min(...members.map((node) => node.position.y)) : fallback.y + padding + headerHeight;
-    const maxX = members.length ? Math.max(...members.map((node) => node.position.x + nodeWidth)) : minX + nodeWidth;
-    const maxY = members.length ? Math.max(...members.map((node) => node.position.y + nodeHeight)) : minY + nodeHeight;
-    return {
-      id: `group-${group.id}`,
-      type: 'topologyGroup',
-      position: members.length ? { x: minX - padding, y: minY - padding - headerHeight } : fallback,
-      data: { group, devices },
-      draggable: false,
-      selectable: false,
-      // Keep the group above the React Flow background, but below device cards.
-      zIndex: 0,
-      style: { width: Math.max(280, maxX - minX + padding * 2), height: Math.max(170, maxY - minY + padding * 2 + headerHeight) },
-    };
-  });
-  const visibleNodes = activeGroup
-    ? nodes.filter((node) => activeGroup.deviceIds.includes(node.id))
-    : [...groupNodes, ...nodes.map((node) => ({ ...node, zIndex: 1 }))];
-  const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
-  const visibleFlowEdges = activeGroup
-    ? flowEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
-    : flowEdges;
+  const groupNodes: FlowNode[] = useMemo(
+    () =>
+      groups.map((group, index) => {
+        const memberIds = Array.isArray(group.deviceIds) ? group.deviceIds : [];
+        const members = memberIds
+          .map((id) => nodes.find((node) => node.id === id))
+          .filter((node): node is FlowNode => Boolean(node));
+        const nodeWidth = 220;
+        const nodeHeight = 78;
+        const padding = 28;
+        const headerHeight = 42;
+        const fallback = group.position ?? {
+          x: 40 + (index % 3) * 280,
+          y: 35 + Math.floor(index / 3) * 180,
+        };
+        const minX = members.length
+          ? Math.min(...members.map((node) => node.position.x))
+          : fallback.x + padding;
+        const minY = members.length
+          ? Math.min(...members.map((node) => node.position.y))
+          : fallback.y + padding + headerHeight;
+        const maxX = members.length
+          ? Math.max(...members.map((node) => node.position.x + nodeWidth))
+          : minX + nodeWidth;
+        const maxY = members.length
+          ? Math.max(...members.map((node) => node.position.y + nodeHeight))
+          : minY + nodeHeight;
+        // Once a group has been moved, preserve its explicit position. Otherwise
+        // its initial placement is calculated around the selected devices.
+        const position =
+          group.position ??
+          (members.length ? { x: minX - padding, y: minY - padding - headerHeight } : fallback);
+        return {
+          id: `group-${group.id}`,
+          type: 'topologyGroup',
+          position,
+          data: { group: { ...group, deviceIds: memberIds }, devices },
+          draggable: true,
+          selectable: true,
+          // Keep the group above the React Flow background, but below device cards.
+          zIndex: 0,
+          style: {
+            width: Math.max(280, maxX - minX + padding * 2),
+            height: Math.max(170, maxY - minY + padding * 2 + headerHeight),
+          },
+        };
+      }),
+    [groups, nodes]
+  );
+  const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+  const selectedDevice =
+    selectedNodeIds.length === 1
+      ? devices.find((device) => device.id === selectedNodeIds[0])
+      : null;
+  const relatedNodeIds = useMemo(
+    () =>
+      selectedDevice
+        ? new Set(
+            edges
+              .filter(
+                (edge) => edge.source === selectedDevice.id || edge.target === selectedDevice.id
+              )
+              .flatMap((edge) => [edge.source, edge.target])
+          )
+        : new Set<string>(),
+    [edges, selectedDevice]
+  );
+  const visibleDeviceNodes = useMemo(
+    () =>
+      nodes
+        .filter((node) => mapTypeFilter === 'all' || node.data.device?.type === mapTypeFilter)
+        .filter((node) => mapStatusFilter === 'all' || node.data.device?.status === mapStatusFilter)
+        .map((node) => {
+          const device = node.data.device as Device;
+          const groupName = groups.find((group) => group.deviceIds?.includes(device.id))?.name;
+          return {
+            ...node,
+            selected: selectedNodeSet.has(node.id),
+            data: {
+              ...node.data,
+              groupName,
+              isConnected: relatedNodeIds.has(node.id) && node.id !== selectedDevice?.id,
+            },
+            zIndex: 1,
+          };
+        }),
+    [groups, mapStatusFilter, mapTypeFilter, nodes, relatedNodeIds, selectedDevice, selectedNodeSet]
+  );
+  const visibleNodes = useMemo(
+    () =>
+      activeGroup
+        ? [
+            ...groupNodes.filter((node) => node.id === `group-${activeGroup.id}`),
+            ...visibleDeviceNodes.filter((node) => activeGroup.deviceIds?.includes(node.id)),
+          ]
+        : [...groupNodes, ...visibleDeviceNodes],
+    [activeGroup, groupNodes, visibleDeviceNodes]
+  );
+  const visibleNodeIds = useMemo(
+    () => new Set(visibleNodes.map((node) => node.id)),
+    [visibleNodes]
+  );
+  const visibleFlowEdges = useMemo(
+    () =>
+      (activeGroup
+        ? flowEdges.filter(
+            (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+          )
+        : flowEdges
+      ).map((edge) => ({
+        ...edge,
+        className: `${edge.className ?? ''} ${selectedDevice && relatedNodeIds.has(edge.source) && relatedNodeIds.has(edge.target) ? 'map-edge-related' : selectedDevice ? 'map-edge-dimmed' : ''}`,
+      })),
+    [activeGroup, flowEdges, relatedNodeIds, selectedDevice, visibleNodeIds]
+  );
   useEffect(() => setNodes(makeNodes(devices)), [devices, setNodes]);
   useEffect(() => {
     setFlowEdges(toFlowEdges(visibleEdges));
@@ -630,7 +789,6 @@ function MapView({
       current && edges.some((edge) => edge.id === current) ? current : null
     );
   }, [visibleEdges, setFlowEdges]);
-  useEffect(() => setViewport({ x: mapView.x, y: mapView.y, zoom: mapView.zoom }), [mapView]);
   const connect = async (connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return;
     const key = edgeKey(connection.source, connection.target);
@@ -670,9 +828,10 @@ function MapView({
         }}
       />
     );
-  const saveViewport = (next: Viewport) => {
-    setViewport(next);
-    void onSaveMapView({ x: next.x, y: next.y, zoom: next.zoom });
+  const saveViewport = (_event: unknown, next: { x: number; y: number; zoom: number }) => {
+    if (next.x !== mapView.x || next.y !== mapView.y || next.zoom !== mapView.zoom) {
+      void onSaveMapView({ x: next.x, y: next.y, zoom: next.zoom });
+    }
   };
   const autoLayout = () =>
     void Promise.all(
@@ -752,7 +911,13 @@ function MapView({
     );
   };
   type ContextMenu =
-    | { kind: 'pane'; x: number; y: number; maxHeight: number; flowPosition: { x: number; y: number } }
+    | {
+        kind: 'pane';
+        x: number;
+        y: number;
+        maxHeight: number;
+        flowPosition: { x: number; y: number };
+      }
     | { kind: 'node'; x: number; y: number; maxHeight: number; id: string }
     | { kind: 'edge'; x: number; y: number; maxHeight: number; id: string };
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -764,17 +929,25 @@ function MapView({
     const bounds = mapCanvasRef.current?.getBoundingClientRect();
     if (!bounds) return;
     const menuWidth = 236;
-    const estimatedHeight = menu.kind === 'pane' ? 175 + groups.length * 32 : menu.kind === 'node' ? 150 : 115;
+    const estimatedHeight =
+      menu.kind === 'pane' ? 175 + groups.length * 32 : menu.kind === 'node' ? 150 : 115;
     const right = Math.min(bounds.right, window.innerWidth);
     const bottom = Math.min(bounds.bottom, window.innerHeight);
     const maxHeight = Math.max(96, bottom - bounds.top - 16);
-    const leftCandidate = event.clientX + menuWidth + 8 <= right ? event.clientX + 8 : event.clientX - menuWidth - 8;
-    const topCandidate = event.clientY + estimatedHeight + 8 <= bottom ? event.clientY + 8 : event.clientY - Math.min(estimatedHeight, maxHeight) - 8;
+    const leftCandidate =
+      event.clientX + menuWidth + 8 <= right ? event.clientX + 8 : event.clientX - menuWidth - 8;
+    const topCandidate =
+      event.clientY + estimatedHeight + 8 <= bottom
+        ? event.clientY + 8
+        : event.clientY - Math.min(estimatedHeight, maxHeight) - 8;
     const left = Math.max(bounds.left + 8, Math.min(leftCandidate, right - menuWidth - 8));
-    const top = Math.max(bounds.top + 8, Math.min(topCandidate, bottom - Math.min(estimatedHeight, maxHeight) - 8));
+    const top = Math.max(
+      bounds.top + 8,
+      Math.min(topCandidate, bottom - Math.min(estimatedHeight, maxHeight) - 8)
+    );
     const flowPosition = {
-      x: (event.clientX - bounds.left - viewport.x) / viewport.zoom - 110,
-      y: (event.clientY - bounds.top - viewport.y) / viewport.zoom - 40,
+      x: (event.clientX - bounds.left - mapView.x) / mapView.zoom - 110,
+      y: (event.clientY - bounds.top - mapView.y) / mapView.zoom - 40,
     };
     setContextMenu({
       ...menu,
@@ -783,6 +956,15 @@ function MapView({
       maxHeight,
       ...(menu.kind === 'pane' ? { flowPosition } : {}),
     } as ContextMenu);
+  };
+  const toggleMapTypeFilter = (value: string) => {
+    const next = value as DeviceType | 'all';
+    setMapTypeFilter(next);
+    try {
+      localStorage.setItem('netscope-map-type-filter', next);
+    } catch {
+      // Filtering still works without persistent browser storage.
+    }
   };
   const contextDevice =
     contextMenu?.kind === 'node' ? devices.find((device) => device.id === contextMenu.id) : null;
@@ -851,9 +1033,32 @@ function MapView({
         />
         <label className="map-auto-edges-toggle">
           <input type="checkbox" checked={showAutoEdges} onChange={toggleAutoEdges} />
-          <span className="map-toggle-track" aria-hidden="true"><span /></span>
+          <span className="map-toggle-track" aria-hidden="true">
+            <span />
+          </span>
           Показывать автоматически построенные связи
         </label>
+        <CustomSelect
+          className="map-filter-select"
+          value={mapTypeFilter}
+          options={[
+            { value: 'all', label: 'Все типы' },
+            ...Object.entries(typeLabels).map(([value, label]) => ({ value, label })),
+          ]}
+          onChange={toggleMapTypeFilter}
+        />
+        <CustomSelect
+          className="map-filter-select"
+          value={mapStatusFilter}
+          options={[
+            { value: 'all', label: 'Все статусы' },
+            { value: 'online', label: 'В сети' },
+            { value: 'warning', label: 'Внимание' },
+            { value: 'offline', label: 'Не в сети' },
+            { value: 'unknown', label: 'Неизвестно' },
+          ]}
+          onChange={(value) => setMapStatusFilter(value as DeviceStatus | 'all')}
+        />
         <button className="tool-button" onClick={autoLayout}>
           <CircleGauge size={15} /> Авторасстановка
         </button>
@@ -891,20 +1096,45 @@ function MapView({
         ref={mapCanvasRef}
         onContextMenu={(event) => event.preventDefault()}
       >
-        {devices.length ? (
+        {isLoading && !isLoaded ? (
+          <div className="map-state" role="status" aria-live="polite">
+            <LoaderCircle size={26} className="spin" />
+            <strong>Загрузка топологии…</strong>
+            <span>Получаем устройства и связи сети</span>
+          </div>
+        ) : loadError && !isLoaded ? (
+          <div className="map-state map-state-error" role="alert">
+            <AlertCircle size={26} />
+            <strong>Не удалось загрузить топологию</strong>
+            <span>{loadError}</span>
+            <button className="secondary-button" onClick={onRetry}>
+              Повторить
+            </button>
+          </div>
+        ) : devices.length ? (
           <ReactFlow
             nodes={visibleNodes}
             edges={visibleFlowEdges}
             nodeTypes={nodeTypes}
-            viewport={viewport}
-            onViewportChange={saveViewport}
+            // Keep React Flow uncontrolled. Passing a freshly updated viewport
+            // back from onMove/onViewportChange creates a render feedback loop
+            // and eventually React error #185 (maximum update depth exceeded).
+            defaultViewport={{ x: mapView.x, y: mapView.y, zoom: mapView.zoom }}
+            onMoveEnd={saveViewport}
             onConnect={(connection) => void connect(connection)}
             onEdgesDelete={(deleted) =>
               void Promise.all(deleted.map((edge) => onDeleteEdge(edge.id)))
             }
             onNodesChange={onNodesChange}
             onNodeClick={(_, node) => {
-              if (node.type === 'device') onSelect(node.id);
+              if (node.type === 'device') {
+                updateSelectedNodeIds((current) =>
+                  current.includes(node.id)
+                    ? current.filter((id) => id !== node.id)
+                    : [...current, node.id]
+                );
+                onSelect(node.id);
+              }
             }}
             onNodeContextMenu={(event, node) =>
               node.type === 'device' && showContextMenu(event, { kind: 'node', id: node.id })
@@ -916,14 +1146,10 @@ function MapView({
             }}
             onPaneClick={() => {
               setSelectedEdgeId(null);
+              updateSelectedNodeIds([]);
               setContextMenu(null);
             }}
             onPaneContextMenu={(event) => showContextMenu(event, { kind: 'pane' })}
-            onNodeDragStop={(_, node) => {
-              if (node.type === 'device') void onPosition(node.id, { position: node.position });
-              if (node.type === 'topologyGroup')
-                moveGroup(node.id.replace('group-', ''), node.position);
-            }}
             deleteKeyCode={['Backspace', 'Delete']}
             onNodesDelete={(deleted) =>
               void Promise.all(
@@ -933,6 +1159,61 @@ function MapView({
               )
             }
             fitView={false}
+            selectionOnDrag
+            panOnDrag={[1, 2]}
+            onSelectionChange={({ nodes: selected }) =>
+              updateSelectedNodeIds(
+                selected.filter((node) => node.type === 'device').map((node) => node.id)
+              )
+            }
+            onNodeDragStop={(_, node) => {
+              if (node.type === 'device') {
+                const original =
+                  nodes.find((item) => item.id === node.id)?.position ?? node.position;
+                const moved = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
+                const delta = { x: node.position.x - original.x, y: node.position.y - original.y };
+                void Promise.all(
+                  moved.map((id) => {
+                    const current = nodes.find((item) => item.id === id);
+                    return current
+                      ? onPosition(id, {
+                          position:
+                            id === node.id
+                              ? node.position
+                              : {
+                                  x: current.position.x + delta.x,
+                                  y: current.position.y + delta.y,
+                                },
+                        })
+                      : Promise.resolve();
+                  })
+                );
+              } else if (node.type === 'topologyGroup') {
+                const groupId = node.id.replace('group-', '');
+                const groupNode = groupNodes.find((item) => item.id === node.id);
+                const group = groups.find((item) => item.id === groupId);
+                if (group && groupNode) {
+                  const delta = {
+                    x: node.position.x - groupNode.position.x,
+                    y: node.position.y - groupNode.position.y,
+                  };
+                  void Promise.all(
+                    (group.deviceIds ?? []).map((id) => {
+                      const current = nodes.find((item) => item.id === id);
+                      return current
+                        ? onPosition(id, {
+                            position: {
+                              x: current.position.x + delta.x,
+                              y: current.position.y + delta.y,
+                            },
+                          })
+                        : Promise.resolve();
+                    })
+                  );
+                  moveGroup(groupId, node.position);
+                }
+              }
+            }}
             proOptions={{ hideAttribution: true }}
           >
             <Background color="#2d394b" gap={24} size={1} />
@@ -999,7 +1280,7 @@ function MapView({
                         >
                           <Boxes size={15} />
                           <span>{group.name}</span>
-                          <small>{group.deviceIds.length}</small>
+                          <small>{group.deviceIds?.length ?? 0}</small>
                         </button>
                         <button
                           className="map-context-more"
@@ -1504,9 +1785,19 @@ function AlertsView() {
       enabled: true,
     },
   ];
-  const [rules, setRules] = useState<Rule[]>(
-    () => JSON.parse(localStorage.getItem('netscope-alert-rules') ?? 'null') ?? defaults
-  );
+  const [rules, setRules] = useState<Rule[]>(() => {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem('netscope-alert-rules') ?? 'null');
+      if (!Array.isArray(saved)) return defaults;
+      return saved.filter((item): item is Rule => {
+        if (!item || typeof item !== 'object') return false;
+        const value = item as Partial<Rule>;
+        return typeof value.id === 'string' && typeof value.name === 'string';
+      });
+    } catch {
+      return defaults;
+    }
+  });
   const [editing, setEditing] = useState<Rule | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Rule | null>(null);
   const save = (next: Rule[]) => {
@@ -1735,11 +2026,19 @@ function SettingsView({
   onConfig: (config: Partial<import('./types').ScanConfig>) => void;
 }) {
   const [saved, setSaved] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(
-    () => localStorage.getItem('netscope-auto-refresh') !== 'false'
-  );
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    try {
+      return localStorage.getItem('netscope-auto-refresh') !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const save = () => {
-    localStorage.setItem('netscope-auto-refresh', String(autoRefresh));
+    try {
+      localStorage.setItem('netscope-auto-refresh', String(autoRefresh));
+    } catch {
+      /* optional persistence */
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
@@ -1804,11 +2103,21 @@ function SettingsView({
 }
 
 function IntegrationsView() {
-  const [webhook, setWebhook] = useState(() => localStorage.getItem('netscope-webhook') ?? '');
+  const [webhook, setWebhook] = useState(() => {
+    try {
+      return localStorage.getItem('netscope-webhook') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [saved, setSaved] = useState(false);
   const [testMessage, setTestMessage] = useState('');
   const save = () => {
-    localStorage.setItem('netscope-webhook', webhook);
+    try {
+      localStorage.setItem('netscope-webhook', webhook);
+    } catch {
+      /* optional persistence */
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
