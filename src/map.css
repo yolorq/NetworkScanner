@@ -1,0 +1,245 @@
+/* Network map surface */
+.map-toolbar {
+  height: 54px;
+  padding: 0 16px;
+  gap: 20px;
+  background: #151c27;
+  border-color: #2b3545;
+}
+.map-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #c3ccda;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.map-status-mark,
+.map-footer-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px #51d69c16;
+}
+.map-canvas {
+  height: 625px;
+  border-color: #2b3545;
+  background: #11161e;
+  box-shadow: 0 18px 50px #0002;
+}
+.map-footer {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  color: #68768a;
+  font-size: 10px;
+}
+.map-footer span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-footer-dot {
+  width: 5px;
+  height: 5px;
+  box-shadow: none;
+  background: #8794a8;
+}
+.react-flow {
+  --xy-background-color: #11161e;
+  --xy-edge-stroke: #65748a;
+  --xy-edge-stroke-width: 2;
+  --xy-edge-stroke-selected: #b1a5ff;
+  --xy-controls-button-background-color: #161f2c;
+  --xy-controls-button-background-color-hover: #253144;
+  --xy-controls-button-color: #aab8ca;
+  --xy-controls-button-color-hover: #f3f6fb;
+  --xy-controls-button-border-color: #303e52;
+  --xy-controls-box-shadow: 0 8px 24px #0005;
+  --xy-minimap-background-color: #141e2b;
+  --xy-minimap-mask-background-color: #64748a33;
+  --xy-minimap-node-stroke-color: #11161e;
+  --xy-background-pattern-dots-color: #2d3948;
+}
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid #303e52;
+  border-radius: 7px;
+  overflow: hidden;
+  margin: 16px;
+}
+.react-flow__controls-button {
+  background: #161f2c;
+  border-color: #303e52;
+  color: #aab8ca;
+  fill: #aab8ca;
+}
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+.react-flow__edge.map-edge-inactive .react-flow__edge-path {
+  stroke: #8793a7;
+  stroke-dasharray: 7 6;
+  opacity: 0.8;
+}
+.react-flow__edge.map-edge-active .react-flow__edge-path {
+  stroke: #65748a;
+  stroke-dasharray: none;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #b1a5ff;
+  opacity: 1;
+}
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 7 5;
+}
+.react-flow__edge-text {
+  fill: #aab8ca;
+  font-size: 10px;
+}
+.react-flow__edge-textbg {
+  fill: #171f2b;
+}
+.device-node {
+  width: 220px;
+  min-height: 78px;
+  background: linear-gradient(145deg, #1b2634, #141d29);
+  border: 1px solid #34445a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  gap: 11px;
+  box-shadow: 0 12px 28px #05091099;
+}
+.device-node {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 25px 8px;
+  align-items: center;
+  column-gap: 10px;
+}
+.device-node:hover {
+  border-color: #5c6e88;
+  box-shadow: 0 14px 34px #050910cc;
+}
+.device-node.is-selected {
+  border-color: #9d92ff;
+  box-shadow:
+    0 0 0 3px #9d92ff25,
+    0 14px 34px #050910cc;
+}
+.node-icon {
+  width: 25px;
+  height: 25px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--node-color) 16%, #111923);
+  border: 1px solid color-mix(in srgb, var(--node-color) 28%, transparent);
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+.node-copy {
+  gap: 3px;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+.node-copy strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: #e8eef7;
+}
+.node-copy span {
+  font:
+    10px ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  color: #b5c0cf;
+}
+.node-copy small {
+  font-size: 9px;
+  color: #7f8da1;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  grid-column: 3;
+  grid-row: 1;
+  margin-left: 0;
+  align-self: start;
+  justify-self: end;
+}
+.node-handle {
+  width: 10px;
+  height: 10px !important;
+  opacity: 1 !important;
+  background: #7b8ba3;
+  border: 2px solid #111923;
+}
+.node-target {
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.node-source {
+  right: -5px;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.node-handle:hover {
+  background: #a99cff;
+}
+.map-context-menu {
+  position: absolute;
+  z-index: 20;
+  width: 220px;
+  padding: 5px;
+  background: #171f2c;
+  border: 1px solid #3a4659;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px #000a;
+}
+.map-context-menu button {
+  width: 100%;
+  min-height: 33px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 9px;
+  color: #b7c1d0;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 11px;
+  text-align: left;
+}
+.map-context-menu button:hover {
+  color: #f1f4f8;
+  background: #293244;
+}
+.map-context-menu button svg {
+  flex: none;
+  color: #a69bff;
+}
+.map-context-menu .delete-line-button,
+.map-context-menu .delete-line-button svg {
+  color: #f38a96 !important;
+}
+.map-context-title {
+  overflow: hidden;
+  padding: 7px 9px 8px;
+  color: #eef2f8;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-context-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: #2d394b;
+}

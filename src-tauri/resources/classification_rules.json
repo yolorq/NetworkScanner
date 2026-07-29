@@ -1,0 +1,841 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "gateway-router",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "gateway"
+      ],
+      "weight": 100,
+      "label": "Default Gateway",
+      "source": "topology",
+      "reliability": 0.95
+    },
+    {
+      "id": "gateway-router-type",
+      "dimension": "type",
+      "target": "router",
+      "all": [
+        "gateway"
+      ],
+      "weight": 100,
+      "label": "Default Gateway",
+      "source": "topology",
+      "reliability": 0.95
+    },
+    {
+      "id": "routing-router-type",
+      "dimension": "type",
+      "target": "router",
+      "all": [
+        "routing-table"
+      ],
+      "weight": 55,
+      "label": "Routing Table",
+      "source": "routing",
+      "reliability": 0.95
+    },
+    {
+      "id": "routing-router",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "routing-table"
+      ],
+      "weight": 55,
+      "label": "Routing Table",
+      "source": "routing",
+      "reliability": 0.95
+    },
+    {
+      "id": "routeros-gateway",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "http:routeros",
+        "gateway"
+      ],
+      "weight": 120,
+      "label": "RouterOS + Gateway",
+      "source": "http+topology",
+      "reliability": 0.8
+    },
+    {
+      "id": "routeros",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "http:routeros"
+      ],
+      "weight": 50,
+      "label": "HTTP RouterOS",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "openwrt",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "http:openwrt"
+      ],
+      "weight": 50,
+      "label": "HTTP OpenWrt",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "keenetic",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "http:keenetic"
+      ],
+      "weight": 50,
+      "label": "HTTP Keenetic",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "internet-gateway",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "upnp:internet-gateway"
+      ],
+      "weight": 90,
+      "label": "UPnP InternetGatewayDevice",
+      "source": "upnp",
+      "reliability": 0.8
+    },
+    {
+      "id": "dhcp-router",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "dhcp-server"
+      ],
+      "weight": 70,
+      "label": "DHCP Server",
+      "source": "dhcp",
+      "reliability": 0.8
+    },
+    {
+      "id": "dns-router",
+      "dimension": "role",
+      "target": "dns",
+      "all": [
+        "dns-server"
+      ],
+      "weight": 40,
+      "label": "DNS Server",
+      "source": "dns",
+      "reliability": 0.8
+    },
+    {
+      "id": "snmp-router",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "snmp:router"
+      ],
+      "weight": 60,
+      "label": "SNMP Router",
+      "source": "snmp",
+      "reliability": 0.95
+    },
+    {
+      "id": "vendor-mikrotik",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "vendor:mikrotik"
+      ],
+      "weight": 25,
+      "label": "MAC Vendor MikroTik",
+      "source": "vendor",
+      "reliability": 0.75
+    },
+    {
+      "id": "vendor-cisco-router",
+      "dimension": "role",
+      "target": "router",
+      "all": [
+        "vendor:cisco",
+        "snmp:router"
+      ],
+      "weight": 45,
+      "label": "Cisco + SNMP",
+      "source": "vendor+snmp",
+      "reliability": 0.8
+    },
+    {
+      "id": "switch-lldp",
+      "dimension": "role",
+      "target": "switch",
+      "any": [
+        "lldp",
+        "cdp"
+      ],
+      "weight": 75,
+      "label": "LLDP/CDP Network Identity",
+      "source": "lldp/cdp",
+      "reliability": 0.98
+    },
+    {
+      "id": "switch-snmp",
+      "dimension": "role",
+      "target": "switch",
+      "all": [
+        "snmp:switch"
+      ],
+      "weight": 70,
+      "label": "SNMP Switch",
+      "source": "snmp",
+      "reliability": 0.95
+    },
+    {
+      "id": "switch-vendor",
+      "dimension": "role",
+      "target": "switch",
+      "all": [
+        "vendor:cisco"
+      ],
+      "weight": 20,
+      "label": "Cisco Network Vendor",
+      "source": "vendor",
+      "reliability": 0.75
+    },
+    {
+      "id": "ap-hostapd",
+      "dimension": "role",
+      "target": "accessPoint",
+      "any": [
+        "hostapd",
+        "capsman"
+      ],
+      "weight": 80,
+      "label": "hostapd/CAPsMAN",
+      "source": "banner",
+      "reliability": 0.8
+    },
+    {
+      "id": "ap-unifi",
+      "dimension": "role",
+      "target": "accessPoint",
+      "all": [
+        "http:unifi-ap"
+      ],
+      "weight": 90,
+      "label": "UniFi Access Point",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "ap-aruba",
+      "dimension": "role",
+      "target": "accessPoint",
+      "all": [
+        "http:aruba-ap"
+      ],
+      "weight": 90,
+      "label": "Aruba Access Point",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "ap-cisco",
+      "dimension": "role",
+      "target": "accessPoint",
+      "all": [
+        "http:cisco-aironet"
+      ],
+      "weight": 90,
+      "label": "Cisco Aironet",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "network-device-fallback",
+      "dimension": "type",
+      "target": "networkDevice",
+      "any": [
+        "lldp",
+        "cdp",
+        "snmp:router",
+        "snmp:switch",
+        "network-management"
+      ],
+      "weight": 45,
+      "label": "Network Management Evidence",
+      "source": "network",
+      "reliability": 0.85
+    },
+    {
+      "id": "network-device-vendor",
+      "dimension": "type",
+      "target": "networkDevice",
+      "any": [
+        "vendor:cisco",
+        "vendor:mikrotik",
+        "vendor:ubiquiti"
+      ],
+      "weight": 20,
+      "label": "Network Equipment Vendor",
+      "source": "vendor",
+      "reliability": 0.75
+    },
+    {
+      "id": "nas-product",
+      "dimension": "role",
+      "target": "nas",
+      "any": [
+        "http:synology",
+        "http:qnap",
+        "http:truenas"
+      ],
+      "weight": 90,
+      "label": "NAS Product Banner",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "nas-snmp",
+      "dimension": "role",
+      "target": "nas",
+      "all": [
+        "snmp:nas"
+      ],
+      "weight": 60,
+      "label": "SNMP NAS",
+      "source": "snmp",
+      "reliability": 0.95
+    },
+    {
+      "id": "nas-storage",
+      "dimension": "role",
+      "target": "nas",
+      "any": [
+        "nfs",
+        "afp",
+        "webdav"
+      ],
+      "weight": 25,
+      "label": "Storage Protocol",
+      "source": "storage",
+      "reliability": 0.75
+    },
+    {
+      "id": "nas-smb",
+      "dimension": "role",
+      "target": "nas",
+      "all": [
+        "smb"
+      ],
+      "weight": 15,
+      "label": "SMB (weak evidence)",
+      "source": "smb",
+      "reliability": 0.65
+    },
+    {
+      "id": "nas-vendor",
+      "dimension": "role",
+      "target": "nas",
+      "any": [
+        "vendor:synology",
+        "vendor:qnap"
+      ],
+      "weight": 40,
+      "label": "NAS Vendor",
+      "source": "vendor",
+      "reliability": 0.75
+    },
+    {
+      "id": "server-ssh",
+      "dimension": "type",
+      "target": "server",
+      "all": [
+        "ssh"
+      ],
+      "weight": 20,
+      "label": "SSH",
+      "source": "ssh",
+      "reliability": 0.85
+    },
+    {
+      "id": "server-openssh",
+      "dimension": "type",
+      "target": "server",
+      "all": [
+        "ssh:openssh"
+      ],
+      "weight": 30,
+      "label": "OpenSSH",
+      "source": "ssh",
+      "reliability": 0.85
+    },
+    {
+      "id": "server-web",
+      "dimension": "type",
+      "target": "server",
+      "any": [
+        "http:nginx",
+        "http:apache"
+      ],
+      "weight": 20,
+      "label": "Web Server Banner",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "server-storage",
+      "dimension": "type",
+      "target": "server",
+      "any": [
+        "nfs",
+        "afp",
+        "webdav"
+      ],
+      "weight": 20,
+      "label": "Server Storage Service",
+      "source": "storage",
+      "reliability": 0.75
+    },
+    {
+      "id": "windows-netbios",
+      "dimension": "type",
+      "target": "workstation",
+      "all": [
+        "netbios"
+      ],
+      "weight": 40,
+      "label": "NetBIOS",
+      "source": "netbios",
+      "reliability": 0.8
+    },
+    {
+      "id": "windows-rdp",
+      "dimension": "type",
+      "target": "workstation",
+      "all": [
+        "rdp"
+      ],
+      "weight": 40,
+      "label": "RDP",
+      "source": "rdp",
+      "reliability": 0.8
+    },
+    {
+      "id": "windows-smb",
+      "dimension": "type",
+      "target": "workstation",
+      "all": [
+        "smb:windows"
+      ],
+      "weight": 40,
+      "label": "SMB Windows Banner",
+      "source": "smb",
+      "reliability": 0.65
+    },
+    {
+      "id": "windows-hostname",
+      "dimension": "type",
+      "target": "workstation",
+      "all": [
+        "hostname"
+      ],
+      "weight": 20,
+      "label": "Hostname",
+      "source": "hostname",
+      "reliability": 0.8
+    },
+    {
+      "id": "printer-ipp",
+      "dimension": "role",
+      "target": "printer",
+      "all": [
+        "ipp"
+      ],
+      "weight": 60,
+      "label": "IPP",
+      "source": "ipp",
+      "reliability": 0.9
+    },
+    {
+      "id": "printer-snmp",
+      "dimension": "role",
+      "target": "printer",
+      "all": [
+        "snmp:printer"
+      ],
+      "weight": 80,
+      "label": "SNMP Printer",
+      "source": "snmp",
+      "reliability": 0.95
+    },
+    {
+      "id": "printer-mdns",
+      "dimension": "role",
+      "target": "printer",
+      "all": [
+        "mdns:printer"
+      ],
+      "weight": 60,
+      "label": "mDNS Printer",
+      "source": "mdns",
+      "reliability": 0.8
+    },
+    {
+      "id": "printer-port",
+      "dimension": "role",
+      "target": "printer",
+      "any": [
+        "port:9100",
+        "port:631"
+      ],
+      "weight": 25,
+      "label": "Printer Port",
+      "source": "tcp",
+      "reliability": 0.45
+    },
+    {
+      "id": "camera-stream",
+      "dimension": "role",
+      "target": "camera",
+      "any": [
+        "rtsp",
+        "onvif"
+      ],
+      "weight": 70,
+      "label": "RTSP/ONVIF",
+      "source": "media",
+      "reliability": 0.9
+    },
+    {
+      "id": "camera-product",
+      "dimension": "role",
+      "target": "camera",
+      "any": [
+        "http:hikvision",
+        "http:dahua"
+      ],
+      "weight": 90,
+      "label": "Camera Product Banner",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "camera-vendor",
+      "dimension": "role",
+      "target": "camera",
+      "any": [
+        "vendor:hikvision",
+        "vendor:dahua"
+      ],
+      "weight": 40,
+      "label": "Camera Vendor",
+      "source": "vendor",
+      "reliability": 0.75
+    },
+    {
+      "id": "virtual-hypervisor",
+      "dimension": "role",
+      "target": "hypervisor",
+      "any": [
+        "http:proxmox",
+        "http:esxi",
+        "http:hyper-v"
+      ],
+      "weight": 80,
+      "label": "Hypervisor Banner",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "virtual-server",
+      "dimension": "type",
+      "target": "server",
+      "any": [
+        "http:proxmox",
+        "http:esxi",
+        "http:hyper-v"
+      ],
+      "weight": 45,
+      "label": "Hypervisor Server",
+      "source": "http",
+      "reliability": 0.8
+    },
+    {
+      "id": "negative-router-workstation",
+      "dimension": "type",
+      "target": "workstation",
+      "all": [
+        "gateway"
+      ],
+      "weight": -70,
+      "label": "Gateway contradicts workstation",
+      "source": "topology",
+      "reliability": 0.95
+    },
+    {
+      "id": "negative-router-printer",
+      "dimension": "type",
+      "target": "printer",
+      "all": [
+        "gateway"
+      ],
+      "weight": -50,
+      "label": "Gateway contradicts printer",
+      "source": "topology",
+      "reliability": 0.95
+    },
+    {
+      "id": "negative-router-camera",
+      "dimension": "role",
+      "target": "camera",
+      "all": [
+        "gateway"
+      ],
+      "weight": -40,
+      "label": "Gateway contradicts camera",
+      "source": "topology",
+      "reliability": 0.95
+    },
+    {
+      "id": "negative-camera-rdp",
+      "dimension": "role",
+      "target": "camera",
+      "all": [
+        "rdp"
+      ],
+      "weight": -40,
+      "label": "RDP contradicts camera",
+      "source": "rdp",
+      "reliability": 0.8
+    },
+    {
+      "id": "negative-nas-onvif",
+      "dimension": "role",
+      "target": "nas",
+      "all": [
+        "onvif"
+      ],
+      "weight": -80,
+      "label": "ONVIF contradicts NAS",
+      "source": "onvif",
+      "reliability": 0.8
+    },
+    {
+      "id": "history-role",
+      "dimension": "role",
+      "target": "{history.role}",
+      "all": [
+        "history:compatible"
+      ],
+      "weight": 15,
+      "label": "Previous high-confidence role",
+      "source": "history",
+      "reliability": 0.7
+    },
+    {
+      "id": "history-type",
+      "dimension": "type",
+      "target": "{history.type}",
+      "all": [
+        "history:compatible"
+      ],
+      "weight": 15,
+      "label": "Previous high-confidence type",
+      "source": "history",
+      "reliability": 0.7
+    },
+    {
+      "id": "os-windows-smb",
+      "dimension": "os",
+      "target": "windows",
+      "all": [
+        "smb:windows"
+      ],
+      "weight": 90,
+      "reliability": 0.9,
+      "label": "SMB Windows Banner",
+      "source": "smb"
+    },
+    {
+      "id": "os-windows-10",
+      "dimension": "os",
+      "target": "windows-10",
+      "all": [
+        "os:windows-10"
+      ],
+      "weight": 100,
+      "reliability": 0.95,
+      "label": "Windows 10 fingerprint",
+      "source": "banner"
+    },
+    {
+      "id": "os-windows-11",
+      "dimension": "os",
+      "target": "windows-11",
+      "all": [
+        "os:windows-11"
+      ],
+      "weight": 100,
+      "reliability": 0.95,
+      "label": "Windows 11 fingerprint",
+      "source": "banner"
+    },
+    {
+      "id": "os-windows-server",
+      "dimension": "os",
+      "target": "windows-server",
+      "all": [
+        "os:windows-server"
+      ],
+      "weight": 100,
+      "reliability": 0.9,
+      "label": "Windows Server fingerprint",
+      "source": "hostname/banner"
+    },
+    {
+      "id": "os-windows-netbios",
+      "dimension": "os",
+      "target": "windows",
+      "all": [
+        "netbios"
+      ],
+      "weight": 45,
+      "reliability": 0.8,
+      "label": "NetBIOS",
+      "source": "netbios"
+    },
+    {
+      "id": "os-linux-ssh",
+      "dimension": "os",
+      "target": "linux",
+      "all": [
+        "ssh:openssh"
+      ],
+      "weight": 80,
+      "reliability": 0.9,
+      "label": "OpenSSH",
+      "source": "ssh"
+    },
+    {
+      "id": "os-linux-web",
+      "dimension": "os",
+      "target": "linux",
+      "any": [
+        "http:nginx",
+        "http:apache"
+      ],
+      "weight": 30,
+      "reliability": 0.65,
+      "label": "Linux Web Server Banner",
+      "source": "http"
+    },
+    {
+      "id": "os-routeros",
+      "dimension": "os",
+      "target": "routeros",
+      "all": [
+        "http:routeros"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "RouterOS",
+      "source": "http"
+    },
+    {
+      "id": "os-openwrt",
+      "dimension": "os",
+      "target": "openwrt",
+      "all": [
+        "http:openwrt"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "OpenWrt",
+      "source": "http"
+    },
+    {
+      "id": "os-proxmox",
+      "dimension": "os",
+      "target": "proxmox",
+      "all": [
+        "http:proxmox"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "Proxmox",
+      "source": "http"
+    },
+    {
+      "id": "os-esxi",
+      "dimension": "os",
+      "target": "esxi",
+      "all": [
+        "http:esxi"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "VMware ESXi",
+      "source": "http"
+    },
+    {
+      "id": "os-synology",
+      "dimension": "os",
+      "target": "synology",
+      "all": [
+        "http:synology"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "Synology DSM",
+      "source": "http"
+    },
+    {
+      "id": "os-qnap",
+      "dimension": "os",
+      "target": "qnap",
+      "all": [
+        "http:qnap"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "QNAP QTS",
+      "source": "http"
+    },
+    {
+      "id": "os-truenas",
+      "dimension": "os",
+      "target": "truenas",
+      "all": [
+        "http:truenas"
+      ],
+      "weight": 95,
+      "reliability": 0.95,
+      "label": "TrueNAS",
+      "source": "http"
+    },
+    {
+      "id": "type-network-device",
+      "dimension": "type",
+      "target": "networkDevice",
+      "any": [
+        "gateway",
+        "routing-table",
+        "lldp",
+        "cdp",
+        "snmp:router",
+        "snmp:switch"
+      ],
+      "weight": 45,
+      "reliability": 0.9,
+      "label": "Network Equipment Evidence",
+      "source": "network"
+    }
+  ]
+}

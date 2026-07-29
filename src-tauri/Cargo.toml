@@ -1,0 +1,31 @@
+[package]
+name = "netscope"
+version = "0.1.0"
+description = "Обнаружение и мониторинг локальной сети"
+authors = ["NetScope"]
+edition = "2021"
+
+[lib]
+name = "netscope_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "sync", "process"] }
+futures = "0.3"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+get_if_addrs = "0.5"
+dns-lookup = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde", "clock"] }
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

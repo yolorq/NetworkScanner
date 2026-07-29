@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Frontend build output
+dist/
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# Local application data
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Environment files and local overrides
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+coverage/
+
+# IDE settings
+.idea/
+.vscode/
+*.iml
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Rust tooling
+**/*.rs.bk
+Cargo.lock.bak
