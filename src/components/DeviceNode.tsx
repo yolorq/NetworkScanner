@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { DeviceIcon, typeColors, typeLabels } from './DeviceIcon';
 import type { Device } from '../types';
+import { formatDateTime } from '../format';
 
 interface DeviceNodeData {
   [key: string]: unknown;
@@ -50,7 +51,7 @@ export function DeviceNode({ data, selected }: NodeProps) {
           <b>Группа:</b> {groupName || '—'}
         </span>
         <span>
-          <b>Посл��дний ответ:</b> {device.lastSeen || '—'}
+          <b>Последний ответ:</b> {formatDateTime(device.lastSeen)}
         </span>
         <span>
           <b>Uptime:</b> {(device as Device & { uptime?: string | number | null }).uptime || '—'}

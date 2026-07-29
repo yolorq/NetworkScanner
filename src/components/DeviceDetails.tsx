@@ -18,6 +18,7 @@ import { DeviceIcon, roleLabels, typeColors, typeLabels } from './DeviceIcon';
 import { CustomSelect } from './CustomSelect';
 import { ConfirmDialog, TextDialog } from './Dialog';
 import type { Device, DeviceType } from '../types';
+import { formatDateTime } from '../format';
 
 export function DeviceDetails({
   device,
@@ -253,10 +254,7 @@ function DetailRow({
   );
 }
 function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
+  return formatDateTime(value);
 }
 
 function formatOs(value: string | null) {

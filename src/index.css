@@ -486,15 +486,18 @@ button {
 }
 .delete-text-button {
   color: #f38a96 !important;
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 7px !important;
+  min-height: 30px;
+  padding: 0 11px !important;
+  background: #432631 !important;
+  border: 1px solid #6a3543 !important;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px #0003 !important;
 }
 .delete-text-button:hover,
 .delete-text-button:focus-visible {
   color: #ffb0b8 !important;
-  background: rgba(243, 138, 150, 0.1) !important;
+  background: #59303d !important;
+  border-color: #a04d61 !important;
   outline: 0;
 }
 .table-actions-cell {

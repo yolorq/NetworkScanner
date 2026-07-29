@@ -56,6 +56,7 @@ import { Sidebar } from './components/Sidebar';
 import { StatCard } from './components/StatCard';
 import { TopologyGroupDialog } from './components/TopologyGroupDialog';
 import { TopologyGroupNode } from './components/TopologyGroupNode';
+import { formatDateTime } from './format';
 import type {
   Device,
   DeviceStatus,
@@ -672,8 +673,12 @@ function MapView({
       groups.map((group, index) => {
         const memberIds = Array.isArray(group.deviceIds) ? group.deviceIds : [];
         const members = memberIds
-          .map((id) => nodes.find((node) => node.id === id))
-          .filter((node): node is FlowNode => Boolean(node));
+          // Use persisted device positions here, not React Flow's temporary
+          // drag positions. Rebuilding the frame on every drag tick makes the
+          // node list change while React Flow is processing the same change
+          // and can cause React error #185.
+          .map((id) => devices.find((device) => device.id === id))
+          .filter((device): device is Device => Boolean(device));
         const nodeWidth = 220;
         const nodeHeight = 78;
         const padding = 28;
@@ -683,29 +688,32 @@ function MapView({
           y: 35 + Math.floor(index / 3) * 180,
         };
         const minX = members.length
-          ? Math.min(...members.map((node) => node.position.x))
+          ? Math.min(...members.map((device) => device.position.x))
           : fallback.x + padding;
         const minY = members.length
-          ? Math.min(...members.map((node) => node.position.y))
+          ? Math.min(...members.map((device) => device.position.y))
           : fallback.y + padding + headerHeight;
         const maxX = members.length
-          ? Math.max(...members.map((node) => node.position.x + nodeWidth))
+          ? Math.max(...members.map((device) => device.position.x + nodeWidth))
           : minX + nodeWidth;
         const maxY = members.length
-          ? Math.max(...members.map((node) => node.position.y + nodeHeight))
+          ? Math.max(...members.map((device) => device.position.y + nodeHeight))
           : minY + nodeHeight;
         // Once a group has been moved, preserve its explicit position. Otherwise
         // its initial placement is calculated around the selected devices.
-        const position =
-          group.position ??
-          (members.length ? { x: minX - padding, y: minY - padding - headerHeight } : fallback);
+        // A group is a visual frame, not a second draggable graph. Its bounds
+        // must follow the member devices; otherwise the frame and devices
+        // separate after the first move.
+        const position = members.length
+          ? { x: minX - padding, y: minY - padding - headerHeight }
+          : fallback;
         return {
           id: `group-${group.id}`,
           type: 'topologyGroup',
           position,
           data: { group: { ...group, deviceIds: memberIds }, devices },
-          draggable: true,
-          selectable: true,
+          draggable: false,
+          selectable: false,
           // Keep the group above the React Flow background, but below device cards.
           zIndex: 0,
           style: {
@@ -714,7 +722,7 @@ function MapView({
           },
         };
       }),
-    [groups, nodes]
+    [devices, groups]
   );
   const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const selectedDevice =
@@ -841,9 +849,6 @@ function MapView({
         })
       )
     );
-  const moveGroup = (groupId: string, position: { x: number; y: number }) => {
-    saveGroups(groups.map((group) => (group.id === groupId ? { ...group, position } : group)));
-  };
   const exportMap = () => {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify({ devices, edges }, null, 2)], { type: 'application/json' })
@@ -1159,59 +1164,15 @@ function MapView({
               )
             }
             fitView={false}
-            selectionOnDrag
-            panOnDrag={[1, 2]}
-            onSelectionChange={({ nodes: selected }) =>
-              updateSelectedNodeIds(
-                selected.filter((node) => node.type === 'device').map((node) => node.id)
-              )
-            }
+            // Selection is managed by this component. Letting React Flow
+            // also mutate selection while `nodes` is controlled creates a
+            // selection -> render -> selection feedback loop during drag.
+            elementsSelectable={false}
             onNodeDragStop={(_, node) => {
-              if (node.type === 'device') {
-                const original =
-                  nodes.find((item) => item.id === node.id)?.position ?? node.position;
-                const moved = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
-                const delta = { x: node.position.x - original.x, y: node.position.y - original.y };
-                void Promise.all(
-                  moved.map((id) => {
-                    const current = nodes.find((item) => item.id === id);
-                    return current
-                      ? onPosition(id, {
-                          position:
-                            id === node.id
-                              ? node.position
-                              : {
-                                  x: current.position.x + delta.x,
-                                  y: current.position.y + delta.y,
-                                },
-                        })
-                      : Promise.resolve();
-                  })
-                );
-              } else if (node.type === 'topologyGroup') {
-                const groupId = node.id.replace('group-', '');
-                const groupNode = groupNodes.find((item) => item.id === node.id);
-                const group = groups.find((item) => item.id === groupId);
-                if (group && groupNode) {
-                  const delta = {
-                    x: node.position.x - groupNode.position.x,
-                    y: node.position.y - groupNode.position.y,
-                  };
-                  void Promise.all(
-                    (group.deviceIds ?? []).map((id) => {
-                      const current = nodes.find((item) => item.id === id);
-                      return current
-                        ? onPosition(id, {
-                            position: {
-                              x: current.position.x + delta.x,
-                              y: current.position.y + delta.y,
-                            },
-                          })
-                        : Promise.resolve();
-                    })
-                  );
-                  moveGroup(groupId, node.position);
-                }
+              if (node.type !== 'device') return;
+              const { x, y } = node.position;
+              if (Number.isFinite(x) && Number.isFinite(y)) {
+                void onPosition(node.id, { position: { x, y } });
               }
             }}
             proOptions={{ hideAttribution: true }}
@@ -2224,10 +2185,7 @@ function MonitorsView({ devices }: { devices: Device[] }) {
 }
 
 function formatEventTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
+  return formatDateTime(value);
 }
 
 function ScannerPanel({
