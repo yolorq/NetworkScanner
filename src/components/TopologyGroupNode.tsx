@@ -16,7 +16,6 @@ export function TopologyGroupNode({ data }: NodeProps) {
   return (
     <div className={`topology-group-node topology-group-color-${color}`}>
       <div className="topology-group-node-heading">
-        <span className="topology-group-node-dot" aria-hidden="true" />
         <div className="topology-group-node-copy">
           <strong>{group.name}</strong>
           <small>{Array.isArray(group.deviceIds) ? group.deviceIds.length : 0} устройств</small>

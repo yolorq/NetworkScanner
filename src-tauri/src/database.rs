@@ -60,11 +60,13 @@ impl Database {
         }
         sqlx::query("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, title TEXT NOT NULL, detail TEXT NOT NULL, time TEXT NOT NULL, kind TEXT NOT NULL)").execute(&pool).await?;
         sqlx::query("CREATE TABLE IF NOT EXISTS classification_history (id INTEGER PRIMARY KEY AUTOINCREMENT, device_ip TEXT NOT NULL, time TEXT NOT NULL, device_type TEXT NOT NULL, role TEXT, confidence INTEGER NOT NULL, matched_features TEXT NOT NULL DEFAULT '[]')").execute(&pool).await?;
-        sqlx::query("CREATE TABLE IF NOT EXISTS edges (id TEXT PRIMARY KEY, source TEXT NOT NULL, target TEXT NOT NULL, label TEXT, manual INTEGER NOT NULL DEFAULT 0, confidence INTEGER NOT NULL DEFAULT 0, evidence TEXT NOT NULL DEFAULT '[]', active INTEGER NOT NULL DEFAULT 1)").execute(&pool).await?;
+        sqlx::query("CREATE TABLE IF NOT EXISTS edges (id TEXT PRIMARY KEY, source TEXT NOT NULL, target TEXT NOT NULL, label TEXT, manual INTEGER NOT NULL DEFAULT 0, confidence INTEGER NOT NULL DEFAULT 0, evidence TEXT NOT NULL DEFAULT '[]', active INTEGER NOT NULL DEFAULT 1, source_handle TEXT, target_handle TEXT)").execute(&pool).await?;
         for (name, definition) in [
             ("confidence", "INTEGER NOT NULL DEFAULT 0"),
             ("evidence", "TEXT NOT NULL DEFAULT '[]'"),
             ("active", "INTEGER NOT NULL DEFAULT 1"),
+            ("source_handle", "TEXT"),
+            ("target_handle", "TEXT"),
         ] {
             ensure_column(&pool, "edges", name, definition).await?;
         }
@@ -128,7 +130,7 @@ impl Database {
     }
 
     pub async fn edges(&self) -> Result<Vec<NetworkEdge>, sqlx::Error> {
-        let rows = sqlx::query("SELECT id,source,target,label,manual,confidence,evidence,active FROM edges ORDER BY id").fetch_all(&self.pool).await?;
+        let rows = sqlx::query("SELECT id,source,target,label,manual,confidence,evidence,active,source_handle,target_handle FROM edges ORDER BY id").fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
                 Ok(NetworkEdge {
@@ -143,6 +145,8 @@ impl Database {
                         "edges.evidence",
                     )?,
                     active: row.try_get::<i64, _>("active")? != 0,
+                    source_handle: row.try_get("source_handle")?,
+                    target_handle: row.try_get("target_handle")?,
                 })
             })
             .collect()
@@ -182,7 +186,7 @@ impl Database {
             .await?;
         for edge in edges {
             let evidence = serialize_json(&edge.evidence, "edges.evidence")?;
-            sqlx::query("INSERT INTO edges (id,source,target,label,manual,confidence,evidence,active) VALUES (?,?,?,?,0,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,target=excluded.target,label=excluded.label,confidence=excluded.confidence,evidence=excluded.evidence,active=excluded.active").bind(&edge.id).bind(&edge.source).bind(&edge.target).bind(&edge.label).bind(edge.confidence).bind(evidence).bind(if edge.active {1} else {0}).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO edges (id,source,target,label,manual,confidence,evidence,active,source_handle,target_handle) VALUES (?,?,?,?,0,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,target=excluded.target,label=excluded.label,confidence=excluded.confidence,evidence=excluded.evidence,active=excluded.active,source_handle=excluded.source_handle,target_handle=excluded.target_handle").bind(&edge.id).bind(&edge.source).bind(&edge.target).bind(&edge.label).bind(edge.confidence).bind(evidence).bind(if edge.active {1} else {0}).bind(&edge.source_handle).bind(&edge.target_handle).execute(&mut *tx).await?;
         }
         sqlx::query("INSERT INTO events (id,title,detail,time,kind) VALUES (?,?,?,?,?)")
             .bind(uuid::Uuid::new_v4().to_string())
@@ -313,7 +317,7 @@ impl Database {
 
     pub async fn save_edge(&self, edge: &NetworkEdge) -> Result<NetworkEdge, sqlx::Error> {
         let evidence = serialize_json(&edge.evidence, "edges.evidence")?;
-        sqlx::query("INSERT INTO edges (id,source,target,label,manual,confidence,evidence,active) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,target=excluded.target,label=excluded.label,manual=excluded.manual,confidence=excluded.confidence,evidence=excluded.evidence,active=excluded.active").bind(&edge.id).bind(&edge.source).bind(&edge.target).bind(&edge.label).bind(if edge.manual {1} else {0}).bind(edge.confidence).bind(evidence).bind(if edge.active {1} else {0}).execute(&self.pool).await?;
+        sqlx::query("INSERT INTO edges (id,source,target,label,manual,confidence,evidence,active,source_handle,target_handle) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,target=excluded.target,label=excluded.label,manual=excluded.manual,confidence=excluded.confidence,evidence=excluded.evidence,active=excluded.active,source_handle=excluded.source_handle,target_handle=excluded.target_handle").bind(&edge.id).bind(&edge.source).bind(&edge.target).bind(&edge.label).bind(if edge.manual {1} else {0}).bind(edge.confidence).bind(evidence).bind(if edge.active {1} else {0}).bind(&edge.source_handle).bind(&edge.target_handle).execute(&self.pool).await?;
         Ok(edge.clone())
     }
     pub async fn delete_edge(&self, id: &str) -> Result<(), sqlx::Error> {

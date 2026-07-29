@@ -137,7 +137,7 @@
 }
 .device-node {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 8px;
+  grid-template-columns: 8px minmax(0, 1fr) 30px;
   align-items: center;
   column-gap: 12px;
   padding: 14px 18px;
@@ -158,7 +158,7 @@
   border-radius: 9px;
   background: color-mix(in srgb, var(--node-color) 16%, #111923);
   border: 1px solid color-mix(in srgb, var(--node-color) 28%, transparent);
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
   justify-self: end;
   display: grid;
@@ -169,7 +169,7 @@
 .node-copy {
   gap: 3px;
   min-width: 0;
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 1;
 }
 .node-copy strong {
@@ -192,12 +192,12 @@
 .status-dot {
   width: 8px;
   height: 8px;
-  grid-column: 3;
+  grid-column: 1;
   grid-row: 1;
   margin-left: 0;
-  align-self: start;
-  justify-self: end;
-  margin-right: 2px;
+  align-self: center;
+  justify-self: center;
+  margin: 0;
 }
 .node-handle {
   width: 12px;
@@ -339,7 +339,7 @@
   padding: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--group-color) 72%, #252b3a);
   border-radius: 14px;
-  background: linear-gradient(145deg, #28244c88, #191b3280);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--group-color) 22%, #202638), color-mix(in srgb, var(--group-color) 10%, #151b29));
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--group-color) 16%, transparent),
     0 10px 24px #05091040;
@@ -382,6 +382,30 @@
   border-radius: 50%;
   background: var(--group-color);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--group-color) 16%, transparent);
+}
+.map-context-group-colors {
+  display: flex !important;
+  align-items: center;
+  gap: 6px !important;
+  width: auto !important;
+  min-height: 28px !important;
+  margin: 3px 4px;
+  padding: 0 5px !important;
+  background: #121923 !important;
+}
+.map-context-color {
+  width: 13px !important;
+  height: 13px !important;
+  min-height: 13px !important;
+  padding: 0 !important;
+  flex: none;
+  border: 2px solid transparent !important;
+  border-radius: 50% !important;
+  background: var(--group-color) !important;
+}
+.map-context-color.selected {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-color) 45%, transparent);
 }
 .topology-group-node-icon {
   display: grid;

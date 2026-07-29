@@ -115,6 +115,10 @@ pub struct NetworkEdge {
     pub evidence: Vec<String>,
     #[serde(default = "default_true")]
     pub active: bool,
+    #[serde(default)]
+    pub source_handle: Option<String>,
+    #[serde(default)]
+    pub target_handle: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

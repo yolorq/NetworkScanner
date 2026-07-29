@@ -606,6 +606,8 @@ fn topology_edges(devices: &[Device], gateway: Option<&str>) -> Vec<NetworkEdge>
                 vec!["ARP / service proximity".into()]
             },
             active: device.status == "online",
+            source_handle: None,
+            target_handle: None,
         })
         .collect()
 }

@@ -39,6 +39,7 @@ import {
   ConnectionMode,
   Controls,
   ReactFlow,
+  reconnectEdge,
   useEdgesState,
   useNodesState,
   type Connection,
@@ -67,6 +68,7 @@ import type {
   NewDeviceInput,
   ViewMode,
   TopologyGroup,
+  TopologyGroupColor,
 } from './types';
 
 const nodeTypes = { device: DeviceNode, topologyGroup: TopologyGroupNode };
@@ -573,6 +575,8 @@ function MapView({
         id: edge.id,
         source: edge.source,
         target: edge.target,
+        sourceHandle: edge.sourceHandle ?? undefined,
+        targetHandle: edge.targetHandle ?? undefined,
         className: edge.active === false ? 'map-edge-inactive' : 'map-edge-active',
         style:
           edge.active === false
@@ -827,7 +831,22 @@ function MapView({
       id: `line-${key}`,
       source: connection.source,
       target: connection.target,
+      sourceHandle: connection.sourceHandle ?? null,
+      targetHandle: connection.targetHandle ?? null,
       manual: true,
+    });
+  };
+  const reconnect = (oldEdge: Edge, connection: Connection) => {
+    if (!connection.source || !connection.target || connection.source === connection.target) return;
+    const next = reconnectEdge(oldEdge, connection, flowEdges, { shouldReplaceId: false })[0];
+    const saved = edges.find((edge) => edge.id === oldEdge.id);
+    if (!next || !saved) return;
+    void onSaveEdge({
+      ...saved,
+      source: next.source,
+      target: next.target,
+      sourceHandle: next.sourceHandle ?? null,
+      targetHandle: next.targetHandle ?? null,
     });
   };
   const add = async (position?: { x: number; y: number }) =>
@@ -946,18 +965,29 @@ function MapView({
         flowPosition: { x: number; y: number };
       }
     | { kind: 'node'; x: number; y: number; maxHeight: number; id: string }
+    | { kind: 'group'; x: number; y: number; maxHeight: number; id: string }
     | { kind: 'edge'; x: number; y: number; maxHeight: number; id: string };
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const showContextMenu = (
     event: MouseEvent | React.MouseEvent,
-    menu: { kind: 'pane' } | { kind: 'node'; id: string } | { kind: 'edge'; id: string }
+    menu:
+      | { kind: 'pane' }
+      | { kind: 'node'; id: string }
+      | { kind: 'group'; id: string }
+      | { kind: 'edge'; id: string }
   ) => {
     event.preventDefault();
     const bounds = mapCanvasRef.current?.getBoundingClientRect();
     if (!bounds) return;
     const menuWidth = 236;
     const estimatedHeight =
-      menu.kind === 'pane' ? 175 + groups.length * 32 : menu.kind === 'node' ? 150 : 115;
+      menu.kind === 'pane'
+        ? 175 + groups.length * 32
+        : menu.kind === 'node'
+          ? 150
+          : menu.kind === 'group'
+            ? 105
+            : 115;
     const right = Math.min(bounds.right, window.innerWidth);
     const bottom = Math.min(bounds.bottom, window.innerHeight);
     const maxHeight = Math.max(96, bottom - bounds.top - 16);
@@ -995,11 +1025,17 @@ function MapView({
   };
   const contextDevice =
     contextMenu?.kind === 'node' ? devices.find((device) => device.id === contextMenu.id) : null;
+  const contextGroup =
+    contextMenu?.kind === 'group' ? groups.find((group) => group.id === contextMenu.id) : null;
   const contextEdge =
     contextMenu?.kind === 'edge' ? edges.find((edge) => edge.id === contextMenu.id) : null;
   const deleteGroup = (group: TopologyGroup) => {
     saveGroups(groups.filter((item) => item.id !== group.id));
     if (activeGroupId === group.id) setActiveGroupId(null);
+  };
+  const automaticEdges = edges.filter((edge) => edge.manual === false);
+  const deleteAutomaticEdges = () => {
+    void Promise.all(automaticEdges.map((edge) => onDeleteEdge(edge.id)));
   };
   return (
     <>
@@ -1065,6 +1101,11 @@ function MapView({
           </span>
           Показывать автоматически построенные связи
         </label>
+        {automaticEdges.length > 0 && (
+          <button className="tool-button delete-line-button" onClick={deleteAutomaticEdges}>
+            <Trash2 size={14} /> Удалить авто-линии
+          </button>
+        )}
         <CustomSelect
           className="map-filter-select"
           value={mapTypeFilter}
@@ -1150,6 +1191,8 @@ function MapView({
             defaultViewport={{ x: mapView.x, y: mapView.y, zoom: mapView.zoom }}
             onMoveEnd={saveViewport}
             onConnect={(connection) => void connect(connection)}
+            onReconnect={reconnect}
+            edgesReconnectable
             onEdgesDelete={(deleted) =>
               void Promise.all(deleted.map((edge) => onDeleteEdge(edge.id)))
             }
@@ -1165,7 +1208,11 @@ function MapView({
               }
             }}
             onNodeContextMenu={(event, node) =>
-              node.type === 'device' && showContextMenu(event, { kind: 'node', id: node.id })
+              node.type === 'device'
+                ? showContextMenu(event, { kind: 'node', id: node.id })
+                : node.type === 'topologyGroup'
+                  ? showContextMenu(event, { kind: 'group', id: node.id.replace('group-', '') })
+                  : undefined
             }
             onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
             onEdgeContextMenu={(event, edge) => {
@@ -1402,6 +1449,42 @@ function MapView({
                   }}
                 >
                   <Trash2 size={15} /> Удалить узел
+                </button>
+              </>
+            )}
+            {contextMenu.kind === 'group' && contextGroup && (
+              <>
+                <div className="map-context-title">Группа «{contextGroup.name}»</div>
+                <div className="map-context-group-colors" aria-label="Цвет группы">
+                  {(['violet', 'cyan', 'emerald', 'amber', 'rose', 'blue'] as TopologyGroupColor[]).map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`map-context-color topology-group-color-${color} ${contextGroup.color === color ? 'selected' : ''}`}
+                      aria-label={`Выбрать цвет ${color}`}
+                      onClick={() => {
+                        saveGroups(groups.map((item) => item.id === contextGroup.id ? { ...item, color } : item));
+                        setContextMenu(null);
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setContextMenu(null);
+                    openGroupDialog(contextGroup);
+                  }}
+                >
+                  <MoreHorizontal size={15} /> Изменить группу
+                </button>
+                <button
+                  className="delete-line-button"
+                  onClick={() => {
+                    deleteGroup(contextGroup);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Trash2 size={15} /> Удалить группу
                 </button>
               </>
             )}

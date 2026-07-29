@@ -98,6 +98,8 @@ export interface NetworkEdge {
   confidence?: number;
   evidence?: string[];
   active?: boolean;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
 }
 
 export interface MapViewState {
