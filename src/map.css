@@ -30,6 +30,11 @@
   background: #11161e;
   box-shadow: 0 18px 50px #0002;
 }
+.map-selection-group-button {
+  border-color: #7569d7;
+  color: #c6bfff;
+  background: #302a5a;
+}
 .map-state {
   height: 100%;
   display: grid;
@@ -39,9 +44,16 @@
   color: #cbd3e0;
   text-align: center;
 }
-.map-state span { color: #7f8ca0; font-size: 11px; }
-.map-state-error { color: #f0a3ad; }
-.map-state-error .secondary-button { margin-top: 4px; }
+.map-state span {
+  color: #7f8ca0;
+  font-size: 11px;
+}
+.map-state-error {
+  color: #f0a3ad;
+}
+.map-state-error .secondary-button {
+  margin-top: 4px;
+}
 .map-footer {
   height: 38px;
   display: flex;
@@ -108,7 +120,15 @@
   stroke-width: 3.5;
   filter: drop-shadow(0 0 4px #9d92ff99);
 }
-.react-flow__edge.map-edge-dimmed .react-flow__edge-path { opacity: .18; }
+.react-flow__edge.map-edge-dimmed .react-flow__edge-path {
+  opacity: 0.18;
+}
+.react-flow__edge.map-edge-selected .react-flow__edge-path {
+  stroke: #b1a5ff;
+  stroke-width: 3;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px #9d92ff99);
+}
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #b1a5ff;
   opacity: 1;
@@ -221,14 +241,57 @@
   bottom: auto !important;
   transform: translateY(-50%) !important;
 }
-.device-node.is-connected { border-color: #8b7ff0; box-shadow: 0 0 0 2px #9d92ff22, 0 12px 28px #05091099; }
-.device-node.status-node-offline { border-color: #8a4b5a; }
-.device-node.status-node-warning { border-color: #8d713e; }
-.device-node.status-node-online { border-color: #356d66; }
-.device-node-tooltip { position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 20; width: 235px; display: grid; gap: 4px; padding: 10px 11px; color: #b9c4d3; background: #171f2c; border: 1px solid #46536a; border-radius: 7px; box-shadow: 0 14px 30px #000b; font-size: 9px; line-height: 1.3; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .15s ease, transform .15s ease; }
-.device-node-tooltip strong { color: #f0f3f8; font-size: 10px; }
-.device-node-tooltip b { color: #8594aa; font-weight: 600; }
-.device-node:hover .device-node-tooltip, .device-node:focus-within .device-node-tooltip { opacity: 1; transform: translate(-50%, 0); }
+.device-node.is-connected {
+  border-color: #8b7ff0;
+  box-shadow:
+    0 0 0 2px #9d92ff22,
+    0 12px 28px #05091099;
+}
+.device-node.status-node-offline {
+  border-color: #8a4b5a;
+}
+.device-node.status-node-warning {
+  border-color: #8d713e;
+}
+.device-node.status-node-online {
+  border-color: #356d66;
+}
+.device-node-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  z-index: 20;
+  width: 235px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  color: #b9c4d3;
+  background: #171f2c;
+  border: 1px solid #46536a;
+  border-radius: 7px;
+  box-shadow: 0 14px 30px #000b;
+  font-size: 9px;
+  line-height: 1.3;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+.device-node-tooltip strong {
+  color: #f0f3f8;
+  font-size: 10px;
+}
+.device-node-tooltip b {
+  color: #8594aa;
+  font-weight: 600;
+}
+.device-node:hover .device-node-tooltip,
+.device-node:focus-within .device-node-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
 .react-flow__handle.node-point-bottom {
   left: 50% !important;
   right: auto !important;
@@ -339,7 +402,8 @@
   padding: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--group-color) 72%, #252b3a);
   border-radius: 14px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--group-color) 22%, #202638), color-mix(in srgb, var(--group-color) 10%, #151b29));
+  background: color-mix(in srgb, var(--group-color) 12%, rgba(17, 22, 30, 0.78));
+  backdrop-filter: blur(4px);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--group-color) 16%, transparent),
     0 10px 24px #05091040;
@@ -347,10 +411,21 @@
   cursor: grab;
   box-sizing: border-box;
 }
-.topology-group-node:active { cursor: grabbing; }
-.react-flow__node-topologyGroup { pointer-events: auto; }
-.react-flow__node-topologyGroup { z-index: 0 !important; }
-.react-flow__node-device { z-index: 3 !important; }
+.topology-group-node:active {
+  cursor: grabbing;
+}
+.react-flow__node-topologyGroup {
+  pointer-events: auto;
+}
+.react-flow__node-topologyGroup {
+  z-index: 0 !important;
+}
+.react-flow__edges {
+  z-index: 1;
+}
+.react-flow__node-device {
+  z-index: 2 !important;
+}
 .topology-group-node-heading {
   display: flex;
   align-items: center;
@@ -417,12 +492,24 @@
   background: color-mix(in srgb, var(--group-color) 22%, #202438);
   border-radius: 7px;
 }
-.topology-group-color-violet { --group-color: #a79cff; }
-.topology-group-color-cyan { --group-color: #5ad5e8; }
-.topology-group-color-emerald { --group-color: #62dcb0; }
-.topology-group-color-amber { --group-color: #f3c375; }
-.topology-group-color-rose { --group-color: #ed849a; }
-.topology-group-color-blue { --group-color: #71adff; }
+.topology-group-color-violet {
+  --group-color: #a79cff;
+}
+.topology-group-color-cyan {
+  --group-color: #5ad5e8;
+}
+.topology-group-color-emerald {
+  --group-color: #62dcb0;
+}
+.topology-group-color-amber {
+  --group-color: #f3c375;
+}
+.topology-group-color-rose {
+  --group-color: #ed849a;
+}
+.topology-group-color-blue {
+  --group-color: #71adff;
+}
 .topology-group-colors {
   display: flex;
   gap: 8px;
@@ -561,8 +648,15 @@
 .map-auto-edges-toggle input:checked + .map-toggle-track {
   background: #6559bf;
 }
-.map-filter-select { width: 132px; flex: none; }
-.map-filter-select .custom-select-trigger { height: 28px; font-size: 10px; background: #1b222d; }
+.map-filter-select {
+  width: 132px;
+  flex: none;
+}
+.map-filter-select .custom-select-trigger {
+  height: 28px;
+  font-size: 10px;
+  background: #1b222d;
+}
 .map-auto-edges-toggle input:checked + .map-toggle-track span {
   transform: translateX(12px);
   background: #f2efff;
@@ -703,6 +797,9 @@
   }
   .topology-group-node {
     padding: 10px 12px;
+  }
+  .react-flow__node-device {
+    max-width: calc(100vw - 92px);
   }
 }
 

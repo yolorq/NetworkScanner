@@ -562,29 +562,29 @@ function MapView({
         : value;
     });
   const edgeKey = (source: string, target: string) => [source, target].sort().join('::');
+  const edgeHandle = (handle: string | null | undefined) => handle ?? 'auto';
+  const lineId = (
+    source: string,
+    target: string,
+    sourceHandle?: string | null,
+    targetHandle?: string | null
+  ) => `line-${edgeKey(source, target)}-${edgeHandle(sourceHandle)}-${edgeHandle(targetHandle)}`;
   const toFlowEdges = (items: NetworkEdge[]): Edge[] => {
-    const seen = new Set<string>();
-    return items
-      .filter((edge) => {
-        const key = edgeKey(edge.source, edge.target);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle ?? undefined,
-        targetHandle: edge.targetHandle ?? undefined,
-        className: edge.active === false ? 'map-edge-inactive' : 'map-edge-active',
-        style:
-          edge.active === false
-            ? { stroke: '#8793a7', strokeWidth: 2, strokeDasharray: '7 6' }
-            : { stroke: '#65748a', strokeWidth: 2 },
-        selectable: true,
-        type: 'smoothstep',
-      }));
+    return items.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle ?? undefined,
+      targetHandle: edge.targetHandle ?? undefined,
+      className: edge.active === false ? 'map-edge-inactive' : 'map-edge-active',
+      style:
+        edge.active === false
+          ? { stroke: '#8793a7', strokeWidth: 2, strokeDasharray: '7 6' }
+          : { stroke: '#65748a', strokeWidth: 2 },
+      selectable: true,
+      reconnectable: true,
+      type: 'smoothstep',
+    }));
   };
   const [lineMode, setLineMode] = useState<'all' | 'active'>('all');
   const [showAutoEdges, setShowAutoEdges] = useState(() => {
@@ -634,19 +634,19 @@ function MapView({
           {
             id: value.id,
             name: value.name,
-          deviceIds: Array.isArray(value.deviceIds)
-            ? value.deviceIds.filter((id): id is string => typeof id === 'string')
-            : [],
-          collapsed: value.collapsed === true,
-          color:
-            value.color === 'cyan' ||
-            value.color === 'emerald' ||
-            value.color === 'amber' ||
-            value.color === 'rose' ||
-            value.color === 'blue' ||
-            value.color === 'violet'
-              ? value.color
-              : 'violet',
+            deviceIds: Array.isArray(value.deviceIds)
+              ? value.deviceIds.filter((id): id is string => typeof id === 'string')
+              : [],
+            collapsed: value.collapsed === true,
+            color:
+              value.color === 'cyan' ||
+              value.color === 'emerald' ||
+              value.color === 'amber' ||
+              value.color === 'rose' ||
+              value.color === 'blue' ||
+              value.color === 'violet'
+                ? value.color
+                : 'violet',
             ...(position && Number.isFinite(position.x) && Number.isFinite(position.y)
               ? { position }
               : {}),
@@ -678,16 +678,25 @@ function MapView({
       // The map remains usable when storage is unavailable or corrupted.
     }
   };
-  const openGroupDialog = (group?: TopologyGroup) =>
+  const openGroupDialog = (group?: TopologyGroup, initialDeviceIds: string[] = []) =>
     setDialog(
       <TopologyGroupDialog
         devices={devices}
         group={group}
+        initialDeviceIds={initialDeviceIds}
         onClose={() => setDialog(null)}
         onSave={(value) => {
           const next = group
             ? groups.map((item) => (item.id === group.id ? { ...item, ...value } : item))
-            : [...groups, { ...value, id: crypto.randomUUID(), collapsed: false, color: value.color ?? 'violet' }];
+            : [
+                ...groups,
+                {
+                  ...value,
+                  id: crypto.randomUUID(),
+                  collapsed: false,
+                  color: value.color ?? 'violet',
+                },
+              ];
           saveGroups(next);
           setDialog(null);
         }}
@@ -707,8 +716,8 @@ function MapView({
           .filter((device): device is Device => Boolean(device));
         const nodeWidth = 220;
         const nodeHeight = 78;
-        const padding = 28;
-        const headerHeight = 42;
+        const padding = 24;
+        const headerHeight = 44;
         const fallback = group.position ?? {
           x: 40 + (index % 3) * 280,
           y: 35 + Math.floor(index / 3) * 180,
@@ -730,9 +739,11 @@ function MapView({
         // A group is a visual frame, not a second draggable graph. Its bounds
         // must follow the member devices; otherwise the frame and devices
         // separate after the first move.
-        const position = groupDragPositions[group.id] ?? (members.length
-          ? { x: minX - padding, y: minY - padding - headerHeight }
-          : fallback);
+        const position =
+          groupDragPositions[group.id] ??
+          (members.length ? { x: minX - padding, y: minY - padding - headerHeight } : fallback);
+        const width = Math.max(250, maxX - minX + padding * 2);
+        const height = Math.max(160, maxY - minY + padding * 2 + headerHeight);
         return {
           id: `group-${group.id}`,
           type: 'topologyGroup',
@@ -743,8 +754,8 @@ function MapView({
           // Keep the group above the React Flow background, but below device cards.
           zIndex: 0,
           style: {
-            width: Math.max(280, maxX - minX + padding * 2),
-            height: Math.max(170, maxY - minY + padding * 2 + headerHeight),
+            width,
+            height,
           },
         };
       }),
@@ -812,9 +823,9 @@ function MapView({
         : flowEdges
       ).map((edge) => ({
         ...edge,
-        className: `${edge.className ?? ''} ${selectedDevice && relatedNodeIds.has(edge.source) && relatedNodeIds.has(edge.target) ? 'map-edge-related' : selectedDevice ? 'map-edge-dimmed' : ''}`,
+        className: `${edge.className ?? ''} ${edge.id === selectedEdgeId ? 'selected map-edge-selected' : ''} ${selectedDevice && relatedNodeIds.has(edge.source) && relatedNodeIds.has(edge.target) ? 'map-edge-related' : selectedDevice ? 'map-edge-dimmed' : ''}`,
       })),
-    [activeGroup, flowEdges, relatedNodeIds, selectedDevice, visibleNodeIds]
+    [activeGroup, flowEdges, relatedNodeIds, selectedDevice, selectedEdgeId, visibleNodeIds]
   );
   useEffect(() => setNodes(makeNodes(devices)), [devices, setNodes]);
   useEffect(() => {
@@ -825,10 +836,20 @@ function MapView({
   }, [visibleEdges, setFlowEdges]);
   const connect = async (connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return;
-    const key = edgeKey(connection.source, connection.target);
-    if (edges.some((edge) => edgeKey(edge.source, edge.target) === key)) return;
+    if (
+      edges.some(
+        (edge) =>
+          edgeKey(edge.source, edge.target) === edgeKey(connection.source, connection.target)
+      )
+    )
+      return;
     await onSaveEdge({
-      id: `line-${key}`,
+      id: lineId(
+        connection.source,
+        connection.target,
+        connection.sourceHandle,
+        connection.targetHandle
+      ),
       source: connection.source,
       target: connection.target,
       sourceHandle: connection.sourceHandle ?? null,
@@ -836,18 +857,38 @@ function MapView({
       manual: true,
     });
   };
+  const createGroupFromSelection = () => {
+    if (selectedNodeIds.length < 2) return;
+    openGroupDialog(undefined, selectedNodeIds);
+  };
   const reconnect = (oldEdge: Edge, connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return;
-    const next = reconnectEdge(oldEdge, connection, flowEdges, { shouldReplaceId: false })[0];
     const saved = edges.find((edge) => edge.id === oldEdge.id);
-    if (!next || !saved) return;
+    if (!saved) return;
+    const duplicate = edges.some(
+      (edge) =>
+        edge.id !== oldEdge.id &&
+        edgeKey(edge.source, edge.target) === edgeKey(connection.source, connection.target)
+    );
+    if (duplicate) return;
+    const next = reconnectEdge(oldEdge, connection, flowEdges, { shouldReplaceId: false })[0];
+    if (!next) return;
     void onSaveEdge({
       ...saved,
+      // Keep the original database id so reconnect updates the row instead of
+      // leaving the old endpoint pair behind as a second line.
+      id: saved.id,
       source: next.source,
       target: next.target,
       sourceHandle: next.sourceHandle ?? null,
       targetHandle: next.targetHandle ?? null,
     });
+  };
+  const deleteSelectedEdge = () => {
+    if (!selectedEdgeId) return;
+    const selected = edges.find((edge) => edge.id === selectedEdgeId);
+    if (selected) void onDeleteEdge(selected.id);
+    setSelectedEdgeId(null);
   };
   const add = async (position?: { x: number; y: number }) =>
     setDialog(
@@ -926,7 +967,7 @@ function MapView({
         onSubmit={(values) => {
           if (values['Первое устройство'] !== values['Второе устройство'])
             void onSaveEdge({
-              id: `line-${edgeKey(values['Первое устройство'], values['Второе устройство'])}`,
+              id: lineId(values['Первое устройство'], values['Второе устройство']),
               source: values['Первое устройство'],
               target: values['Второе устройство'],
               manual: true,
@@ -948,7 +989,7 @@ function MapView({
         )
         .map((device) =>
           onSaveEdge({
-            id: `line-${edgeKey(root.id, device.id)}`,
+            id: lineId(root.id, device.id),
             source: root.id,
             target: device.id,
             manual: false,
@@ -1059,6 +1100,14 @@ function MapView({
             <button className="secondary-button" onClick={() => openGroupDialog()}>
               <Plus size={16} /> Группа
             </button>
+            {selectedNodeIds.length >= 2 && (
+              <button
+                className="secondary-button map-selection-group-button"
+                onClick={createGroupFromSelection}
+              >
+                <Boxes size={16} /> В группу ({selectedNodeIds.length})
+              </button>
+            )}
             <button className="secondary-button" onClick={autoConnect}>
               <Radar size={16} /> Построить линии
             </button>
@@ -1197,14 +1246,19 @@ function MapView({
               void Promise.all(deleted.map((edge) => onDeleteEdge(edge.id)))
             }
             onNodesChange={onNodesChange}
-            onNodeClick={(_, node) => {
+            onNodeClick={(event, node) => {
               if (node.type === 'device') {
-                updateSelectedNodeIds((current) =>
-                  current.includes(node.id)
-                    ? current.filter((id) => id !== node.id)
-                    : [...current, node.id]
-                );
-                onSelect(node.id);
+                if (event.shiftKey) {
+                  updateSelectedNodeIds((current) =>
+                    current.includes(node.id)
+                      ? current.filter((id) => id !== node.id)
+                      : [...current, node.id]
+                  );
+                  if (selectedNodeIds.length === 1) onSelect('');
+                } else {
+                  updateSelectedNodeIds([node.id]);
+                  onSelect(node.id);
+                }
               }
             }}
             onNodeContextMenu={(event, node) =>
@@ -1224,6 +1278,12 @@ function MapView({
               updateSelectedNodeIds([]);
               setContextMenu(null);
             }}
+            onKeyDown={(event) => {
+              if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEdgeId) {
+                event.preventDefault();
+                deleteSelectedEdge();
+              }
+            }}
             onPaneContextMenu={(event) => showContextMenu(event, { kind: 'pane' })}
             deleteKeyCode={['Backspace', 'Delete']}
             onNodesDelete={(deleted) =>
@@ -1238,6 +1298,7 @@ function MapView({
             // also mutate selection while `nodes` is controlled creates a
             // selection -> render -> selection feedback loop during drag.
             elementsSelectable={false}
+            edgesFocusable
             onNodeDrag={(_, node) => {
               if (node.type !== 'topologyGroup') return;
               const groupId = node.id.replace('group-', '');
@@ -1456,14 +1517,20 @@ function MapView({
               <>
                 <div className="map-context-title">Группа «{contextGroup.name}»</div>
                 <div className="map-context-group-colors" aria-label="Цвет группы">
-                  {(['violet', 'cyan', 'emerald', 'amber', 'rose', 'blue'] as TopologyGroupColor[]).map((color) => (
+                  {(
+                    ['violet', 'cyan', 'emerald', 'amber', 'rose', 'blue'] as TopologyGroupColor[]
+                  ).map((color) => (
                     <button
                       key={color}
                       type="button"
                       className={`map-context-color topology-group-color-${color} ${contextGroup.color === color ? 'selected' : ''}`}
                       aria-label={`Выбрать цвет ${color}`}
                       onClick={() => {
-                        saveGroups(groups.map((item) => item.id === contextGroup.id ? { ...item, color } : item));
+                        saveGroups(
+                          groups.map((item) =>
+                            item.id === contextGroup.id ? { ...item, color } : item
+                          )
+                        );
                         setContextMenu(null);
                       }}
                     />

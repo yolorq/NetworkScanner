@@ -15,24 +15,29 @@ const groupColors: Array<{ value: TopologyGroupColor; label: string }> = [
 export function TopologyGroupDialog({
   devices,
   group,
+  initialDeviceIds = [],
   onClose,
   onSave,
 }: {
   devices: Device[];
   group?: TopologyGroup;
+  initialDeviceIds?: string[];
   onClose: () => void;
   onSave: (group: Omit<TopologyGroup, 'id' | 'collapsed'>) => void;
 }) {
   const [name, setName] = useState(group?.name ?? '');
-  const [deviceIds, setDeviceIds] = useState<string[]>(group?.deviceIds ?? []);
+  const [deviceIds, setDeviceIds] = useState<string[]>(group?.deviceIds ?? initialDeviceIds);
   const [color, setColor] = useState<TopologyGroupColor>(group?.color ?? 'violet');
   const toggleDevice = (id: string) =>
     setDeviceIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
     );
 
   return (
-    <div className="dialog-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div
+      className="dialog-overlay"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
       <form
         className="dialog-card topology-group-dialog"
         onSubmit={(event) => {
@@ -51,7 +56,12 @@ export function TopologyGroupDialog({
         </div>
         <label className="setting-field">
           Название группы
-          <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Например: Серверы" />
+          <input
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Например: Серверы"
+          />
         </label>
         <div className="setting-field topology-group-color-field">
           <span>Цвет группы</span>
@@ -75,18 +85,37 @@ export function TopologyGroupDialog({
           <small>{deviceIds.length} выбрано</small>
         </div>
         <div className="topology-group-devices">
-          {devices.length ? devices.map((device) => (
-            <label className="topology-group-device" key={device.id}>
-              <input type="checkbox" checked={deviceIds.includes(device.id)} onChange={() => toggleDevice(device.id)} />
-              <span className={`topology-group-device-icon ${typeColors[device.type]}`}><DeviceIcon type={device.type} size={14} /></span>
-              <span><strong>{device.hostname || device.ip}</strong><small>{device.ip} · {typeLabels[device.type]}</small></span>
-              <i>{deviceIds.includes(device.id) && <Check size={13} />}</i>
-            </label>
-          )) : <p className="empty-inline">Сначала добавьте устройства на карту.</p>}
+          {devices.length ? (
+            devices.map((device) => (
+              <label className="topology-group-device" key={device.id}>
+                <input
+                  type="checkbox"
+                  checked={deviceIds.includes(device.id)}
+                  onChange={() => toggleDevice(device.id)}
+                />
+                <span className={`topology-group-device-icon ${typeColors[device.type]}`}>
+                  <DeviceIcon type={device.type} size={14} />
+                </span>
+                <span>
+                  <strong>{device.hostname || device.ip}</strong>
+                  <small>
+                    {device.ip} · {typeLabels[device.type]}
+                  </small>
+                </span>
+                <i>{deviceIds.includes(device.id) && <Check size={13} />}</i>
+              </label>
+            ))
+          ) : (
+            <p className="empty-inline">Сначала добавьте устройства на карту.</p>
+          )}
         </div>
         <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>Отмена</button>
-          <button type="submit" className="primary-button" disabled={!name.trim()}><Check size={15} /> Сохранить</button>
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Отмена
+          </button>
+          <button type="submit" className="primary-button" disabled={!name.trim()}>
+            <Check size={15} /> Сохранить
+          </button>
         </div>
       </form>
     </div>
